@@ -1,0 +1,277 @@
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { AppServer, type AppServerOptions } from '../src/main/server'
+import { Store } from '../src/main/store'
+import type { AppState } from '../src/main/domain/types'
+
+interface Harness {
+  server: AppServer
+  store: Store
+  base: string
+  dir: string
+}
+
+let harness: Harness
+
+async function startServer(overrides: Partial<AppServerOptions> = {}): Promise<Harness> {
+  const dir = await mkdtemp(path.join(tmpdir(), 'habit-tracker-test-'))
+  const store = await Store.open(dir)
+  store.updateSettings({ remoteAccessEnabled: false, serverPort: 0 })
+  const server = new AppServer({
+    store,
+    desktopToken: 'desktop-token-for-tests',
+    rendererDir: null,
+    onRebind: () => undefined,
+    log: () => undefined,
+    ...overrides,
+  })
+  const port = await server.start()
+  return { server, store, base: `http://127.0.0.1:${port}`, dir }
+}
+
+async function call(
+  method: string,
+  url: string,
+  body?: unknown,
+  token?: string,
+): Promise<{ status: number; data: unknown; text: string }> {
+  const response = await fetch(`${harness.base}${url}`, {
+    method,
+    headers: {
+      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  })
+  const text = await response.text()
+  let data: unknown = null
+  try {
+    data = JSON.parse(text)
+  } catch {
+    data = null
+  }
+  return { status: response.status, data, text }
+}
+
+const json = (value: unknown): string => JSON.stringify(value)
+
+beforeEach(async () => {
+  harness = await startServer()
+})
+
+afterEach(async () => {
+  await harness.server.close()
+  // Сначала дописываем отложенные изменения, иначе таймер записи сработает
+  // уже после удаления временной папки.
+  await harness.store.flush()
+  await rm(harness.dir, { recursive: true, force: true })
+})
+
+describe('учётная запись и сессии', () => {
+  it('до настройки вход невозможен, после setup выдаётся токен', async () => {
+    expect((await call('GET', '/api/auth/status')).data).toEqual({ configured: false })
+    expect((await call('POST', '/api/auth/login', { username: 'anna', password: 'secret12' })).status).toBe(401)
+
+    const setup = await call('POST', '/api/auth/setup', { username: 'Anna', password: 'secret12' })
+    expect(setup.status).toBe(201)
+    const token = (setup.data as { token: string }).token
+    expect(token).toBeTruthy()
+    expect((await call('GET', '/api/state', undefined, token)).status).toBe(200)
+  })
+
+  it('неверный пароль не пускает, верный — пускает и различает регистр логина', async () => {
+    await call('POST', '/api/auth/setup', { username: 'anna', password: 'secret12' })
+    expect((await call('POST', '/api/auth/login', { username: 'anna', password: 'wrong123' })).status).toBe(401)
+    const login = await call('POST', '/api/auth/login', { username: 'ANNA', password: 'secret12' })
+    expect(login.status).toBe(200)
+    expect((login.data as { username: string }).username).toBe('anna')
+  })
+
+  it('смена пароля обрывает старые сессии и выдаёт новый токен', async () => {
+    const setup = await call('POST', '/api/auth/setup', { username: 'anna', password: 'secret12' })
+    const oldToken = (setup.data as { token: string }).token
+
+    const changed = await call('POST', '/api/auth/password', { password: 'newsecret1' }, oldToken)
+    expect(changed.status).toBe(200)
+    const newToken = (changed.data as { token: string }).token
+    expect(newToken).toBeTruthy()
+
+    expect((await call('GET', '/api/state', undefined, oldToken)).status).toBe(401)
+    expect((await call('GET', '/api/state', undefined, newToken)).status).toBe(200)
+  })
+
+  it('смена логина принимает объект и отсекает недопустимое имя', async () => {
+    const setup = await call('POST', '/api/auth/setup', { username: 'anna', password: 'secret12' })
+    const token = (setup.data as { token: string }).token
+
+    expect((await call('POST', '/api/auth/username', { username: 'bad name!' }, token)).status).toBe(400)
+    expect((await call('POST', '/api/auth/username', { username: 'boris' }, token)).status).toBe(200)
+
+    const login = await call('POST', '/api/auth/login', { username: 'boris', password: 'secret12' })
+    expect(login.status).toBe(200)
+  })
+
+  it('токен компьютера не требует входа, но не отдаётся без заголовка', async () => {
+    await call('POST', '/api/auth/setup', { username: 'anna', password: 'secret12' })
+    expect((await call('GET', '/api/state')).status).toBe(401)
+    expect((await call('GET', '/api/state', undefined, 'desktop-token-for-tests')).status).toBe(200)
+  })
+})
+
+describe('привычки и отметки', () => {
+  async function authed(): Promise<string> {
+    const setup = await call('POST', '/api/auth/setup', { username: 'anna', password: 'secret12' })
+    return (setup.data as { token: string }).token
+  }
+
+  const input = {
+    name: 'Зарядка',
+    color: '#4ade80',
+    icon: '💪',
+    type: 'boolean',
+    targetPerDay: 1,
+    unit: '',
+    schedule: { mode: 'daily' },
+    startDate: '2026-10-01',
+    endDate: null,
+  }
+
+  it('создаёт привычку, отмечает и считает серию', async () => {
+    const token = await authed()
+    const created = await call('POST', '/api/habits', input, token)
+    expect(created.status).toBe(201)
+    const id = (created.data as { id: string }).id
+
+    for (const date of ['2026-10-01', '2026-10-02']) {
+      expect((await call('POST', `/api/entries/${id}/${date}/toggle`, undefined, token)).status).toBe(200)
+    }
+
+    const state = await call('GET', '/api/state', undefined, token)
+    const stats = (state.data as AppState).stats[id]
+    expect(stats.current).toBe(2)
+    expect(stats.best).toBe(2)
+  })
+
+  it('счётчик увеличивается на дельту и не уходит ниже нуля', async () => {
+    const token = await authed()
+    const created = await call(
+      'POST',
+      '/api/habits',
+      { ...input, type: 'count', targetPerDay: 3, unit: 'раз' },
+      token,
+    )
+    const id = (created.data as { id: string }).id
+
+    const up = await call('POST', `/api/entries/${id}/2026-10-01/delta`, { delta: 2 }, token)
+    expect((up.data as { value: number }).value).toBe(2)
+    const down = await call('POST', `/api/entries/${id}/2026-10-01/delta`, { delta: -5 }, token)
+    expect((down.data as { value: number }).value).toBe(0)
+  })
+
+  it('отклоняет несуществующую дату и неизвестную привычку', async () => {
+    const token = await authed()
+    const created = await call('POST', '/api/habits', input, token)
+    const id = (created.data as { id: string }).id
+
+    expect((await call('POST', `/api/entries/${id}/2026-02-30/toggle`, undefined, token)).status).toBe(400)
+    expect((await call('POST', '/api/entries/nope/2026-10-01/toggle', undefined, token)).status).toBe(404)
+  })
+
+  it('не даёт создать привычку с датой окончания раньше начала', async () => {
+    const token = await authed()
+    const created = await call(
+      'POST',
+      '/api/habits',
+      { ...input, startDate: '2026-10-10', endDate: '2026-10-01' },
+      token,
+    )
+    expect((created.data as { endDate: string | null }).endDate).toBeNull()
+  })
+})
+
+describe('настройки, экспорт и импорт', () => {
+  async function authed(): Promise<string> {
+    const setup = await call('POST', '/api/auth/setup', { username: 'anna', password: 'secret12' })
+    return (setup.data as { token: string }).token
+  }
+
+  it('обновляет настройки и уведомляет главный процесс', async () => {
+    const seen: string[] = []
+    await harness.server.close()
+    await harness.store.flush()
+    await rm(harness.dir, { recursive: true, force: true })
+    harness = await startServer({
+      onSettingsChange: (_previous, next) => seen.push(String(next.streakResetEnabled)),
+    })
+    expect((await call('PATCH', '/api/settings', {}, 'desktop-token-for-tests')).status).toBe(200)
+    seen.length = 0
+
+    const response = await call(
+      'PATCH',
+      '/api/settings',
+      { streakResetEnabled: false },
+      'desktop-token-for-tests',
+    )
+    expect(response.status).toBe(200)
+    expect((response.data as { streakResetEnabled: boolean }).streakResetEnabled).toBe(false)
+    expect(seen).toEqual(['false'])
+  })
+
+  it('выгружает копию с привычками и загружает её обратно', async () => {
+    const token = await authed()
+    await call(
+      'POST',
+      '/api/habits',
+      {
+        name: 'Чтение',
+        color: '#60a5fa',
+        icon: '📚',
+        type: 'count',
+        targetPerDay: 10,
+        unit: 'стр',
+        schedule: { mode: 'timesPerWeek', timesPerWeek: 3 },
+        startDate: '2026-10-01',
+        endDate: null,
+      },
+      token,
+    )
+
+    const exported = await call('GET', '/api/export', undefined, token)
+    expect(exported.status).toBe(200)
+    const dump = JSON.parse(exported.text) as { habits: unknown[]; entries: Record<string, unknown> }
+    expect(dump.habits).toHaveLength(1)
+
+    // Копию можно загрузить обратно: данные распознаются.
+    expect((await call('POST', '/api/import', dump, token)).status).toBe(200)
+
+    // Импорт мусора отклоняется.
+    expect((await call('POST', '/api/import', { habits: 'nope' }, token)).status).toBe(400)
+  })
+
+  it('не пускает к данным без токена', async () => {
+    expect((await call('GET', '/api/state')).status).toBe(401)
+    expect((await call('GET', '/api/export')).status).toBe(401)
+    expect((await call('POST', '/api/habits', {})).status).toBe(401)
+  })
+
+  it('проверяет формат данных привычки', async () => {
+    const token = await authed()
+    const response = await call(
+      'POST',
+      '/api/habits',
+      {
+        name: '',
+        color: 'green',
+        type: 'boolean',
+        targetPerDay: 0,
+        schedule: { mode: 'weekdays', days: [] },
+        startDate: '01.10.2026',
+      },
+      token,
+    )
+    expect(response.status).toBe(400)
+    expect(json(response.data)).toContain('error')
+  })
+})

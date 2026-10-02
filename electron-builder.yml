@@ -1,0 +1,36 @@
+appId: com.habittracker.app
+productName: Трекер привычек
+copyright: Copyright © 2026
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - dist/**/*
+  - package.json
+  - '!**/*.map'
+  - '!node_modules/**/{test,__tests__,tests,powered-test,example,examples}/**'
+  - '!node_modules/**/*.d.ts'
+
+extraResources:
+  - from: build/icons
+    to: icons
+    filter: ['**/*']
+
+asar: true
+
+linux:
+  category: Utility
+  icon: build/icons/icon.png
+  # Имя исполняемого файла оставляем латиницей: кириллица в путях ломает
+  # .desktop-файл и запуск из терминала.
+  executableName: habit-tracker
+  syncDesktopName: true
+  synopsis: Трекер привычек с календарём и сериями
+  description: Трекер привычек с календарём, сериями выполнения и доступом с телефона по локальной сети.
+  target:
+    - target: deb
+      arch: [x64]
+    - target: AppImage
+      arch: [x64]

@@ -1,0 +1,24 @@
+import type { ReactNode } from 'react'
+import { useApp } from '../state/app'
+
+export function Toasts(): ReactNode {
+  const { toasts, dismissToast } = useApp()
+  if (toasts.length === 0) return null
+  return (
+    <div className="toasts" role="status" aria-live="polite">
+      {toasts.map((toast) => (
+        <div key={toast.id} className={`toast ${toast.tone}`}>
+          <span className="grow">{toast.text}</span>
+          <button
+            type="button"
+            className="btn btn-ghost btn-icon"
+            onClick={() => dismissToast(toast.id)}
+            aria-label="Скрыть"
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+}
