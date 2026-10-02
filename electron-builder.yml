@@ -35,3 +35,34 @@ linux:
       arch: [x64]
     - target: AppImage
       arch: [x64]
+
+win:
+  icon: build/icons/icon.png
+  executableName: habit-tracker
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+
+nsis:
+  artifactName: habit-tracker-${version}-setup.${ext}
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Habit Tracker
+
+portable:
+  artifactName: habit-tracker-${version}-portable.${ext}
+
+mac:
+  icon: build/icons/icon.png
+  category: public.app-category.productivity
+  identity: null
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
