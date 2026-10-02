@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import { copyFileSync, existsSync, mkdirSync, renameSync } from 'node:fs'
 import path from 'node:path'
 import { BrowserWindow, app, ipcMain } from 'electron'
 import type { Settings } from './domain/types'
@@ -15,6 +16,41 @@ const VITE_URL = process.env.HABIT_VITE_URL ?? VITE_DEV_URL
 const APP_NAME = 'Habit Tracker'
 
 const log = (message: string): void => console.log(`[app] ${message}`)
+
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('disable-gpu-sandbox')
+}
+
+const USER_DATA_DIR_NAME = 'Habit Tracker'
+const LEGACY_USER_DATA_DIR_NAME = 'Трекер привычек'
+
+/**
+ * Папка данных теперь называется по-английски. Переносим содержимое прежней
+ * папки, чтобы аккаунт, привычки и отметки не потерялись при обновлении.
+ */
+function prepareUserData(): void {
+  const appData = app.getPath('appData')
+  const target = path.join(appData, USER_DATA_DIR_NAME)
+  app.setPath('userData', target)
+  const legacy = path.join(appData, LEGACY_USER_DATA_DIR_NAME)
+  if (target === legacy) return
+  if (existsSync(path.join(target, 'data.json'))) return
+  if (!existsSync(path.join(legacy, 'data.json'))) return
+  try {
+    if (!existsSync(target)) renameSync(legacy, target)
+    else copyFileSync(path.join(legacy, 'data.json'), path.join(target, 'data.json'))
+  } catch (err) {
+    log(`не удалось перенести данные из прежней папки: ${String(err)}`)
+    try {
+      mkdirSync(target, { recursive: true })
+      copyFileSync(path.join(legacy, 'data.json'), path.join(target, 'data.json'))
+    } catch (copyErr) {
+      log(`повторный перенос данных не удался: ${String(copyErr)}`)
+    }
+  }
+}
+
+prepareUserData()
 
 /** Токен для окна на этом компьютере: действует всегда, в вводе пароля не участвует. */
 const desktopToken = randomBytes(32).toString('hex')

@@ -1,10 +1,10 @@
 {
   "name": "habit-tracker",
-  "productName": "Трекер привычек",
-  "version": "1.0.0",
-  "description": "Трекер привычек с календарём, сериями и доступом с других устройств по локальной сети",
+  "productName": "Habit Tracker",
+  "version": "1.0.2",
+  "description": "Habit tracker with a calendar, streaks, and access from other devices over the local network",
   "author": {
-    "name": "Трекер привычек",
+    "name": "Habit Tracker",
     "email": "noreply@example.com"
   },
   "homepage": "https://example.com/habit-tracker",

@@ -62,8 +62,8 @@ export class AppServer {
     })
 
     this.app.disable('x-powered-by')
-    this.app.use(this.securityHeaders)
-    this.app.use(this.originGuard)
+    this.app.use((req, res, next) => this.securityHeaders(req, res, next))
+    this.app.use((req, res, next) => this.originGuard(req, res, next))
     this.app.use(express.json({ limit: '10mb' }))
 
     const api = createApiRouter({
@@ -78,7 +78,10 @@ export class AppServer {
     this.app.get('/api/health', (_req, res) => res.json({ ok: true, port: this.boundPort }))
 
     if (this.rendererDir) this.mountRenderer()
-    this.app.use(this.errorHandler)
+    this.app.use(
+      (err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) =>
+        this.errorHandler(err, req, res, next),
+    )
 
     this.sweepTimer = setInterval(() => this.throttle.sweep(), 60_000)
     this.sweepTimer.unref()
@@ -157,7 +160,7 @@ export class AppServer {
       if (req.path.startsWith('/api')) return next()
       if (!existsSync(indexFile)) return next()
       res.setHeader('Cache-Control', 'no-cache')
-      return res.sendFile(indexFile)
+      return res.sendFile('index.html', { root: dir })
     })
   }
 
