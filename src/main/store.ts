@@ -13,6 +13,7 @@ export interface NewHabitInput {
   schedule: Habit['schedule']
   startDate: DateStr
   endDate: DateStr | null
+  resetStreakOnMiss: boolean
 }
 
 export type HabitPatch = Partial<Omit<Habit, 'id' | 'createdAt'>>
@@ -141,6 +142,7 @@ export class Store {
       schedule: input.schedule,
       startDate: input.startDate,
       endDate: input.endDate,
+      resetStreakOnMiss: input.resetStreakOnMiss,
       archived: false,
       sortOrder: this.data.habits.length,
       createdAt: new Date().toISOString(),
@@ -162,6 +164,7 @@ export class Store {
     if (patch.sortOrder !== undefined) habit.sortOrder = patch.sortOrder
     if (patch.startDate !== undefined) habit.startDate = patch.startDate
     if (patch.endDate !== undefined) habit.endDate = patch.endDate
+    if (patch.resetStreakOnMiss !== undefined) habit.resetStreakOnMiss = patch.resetStreakOnMiss
     if (patch.schedule !== undefined) habit.schedule = patch.schedule
     if (patch.type !== undefined && patch.type !== habit.type) {
       // Смена типа обнуляет дневные значения: у «да/нет» и счётчика разный смысл.

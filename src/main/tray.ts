@@ -1,9 +1,11 @@
 import { Menu, Tray, clipboard, nativeImage, type BrowserWindow } from 'electron'
+import type { Language } from '../i18n'
+import { t } from '../i18n'
 import type { ServerInfo } from './domain/types'
 
 export interface TrayOptions {
   iconPath: string | null
-  appName: string
+  getLanguage: () => Language
   getServerInfo: () => ServerInfo
   getWindow: () => BrowserWindow | null
   onQuit: () => void
@@ -33,41 +35,42 @@ export class AppTray {
       this.tray = null
       return
     }
-    this.tray.setToolTip(this.options.appName)
+    this.tray.setToolTip(t(this.options.getLanguage(), 'app.name'))
     this.tray.on('click', () => this.options.onOpenWindow())
     this.refresh()
   }
 
   refresh(): void {
     if (!this.tray) return
+    const lang = this.options.getLanguage()
     const info = this.options.getServerInfo()
     const urls = info.remoteAccessEnabled ? info.lanUrls : []
     this.tray.setContextMenu(
       Menu.buildFromTemplate([
-        { label: 'Открыть', click: () => this.options.onOpenWindow() },
+        { label: t(lang, 'tray.open'), click: () => this.options.onOpenWindow() },
         { type: 'separator' },
         {
-          label: urls.length > 0 ? 'Доступ с других устройств' : 'Локальный доступ выключен',
+          label: urls.length > 0 ? t(lang, 'tray.remoteOn') : t(lang, 'tray.remoteOff'),
           enabled: false,
         },
         ...urls.map((url) => ({
-          label: `${url.replace(/^https?:\/\//, '')} — скопировать`,
+          label: t(lang, 'tray.copyUrl', { url: url.replace(/^https?:\/\//, '') }),
           click: () => {
             clipboard.writeText(url)
             this.tray?.displayBalloon?.({
-              title: this.options.appName,
-              content: `Адрес скопирован: ${url}`,
+              title: t(lang, 'app.name'),
+              content: t(lang, 'tray.urlCopied', { url }),
             })
           },
         })),
         { type: 'separator' },
-        { label: 'Выход', click: () => this.options.onQuit() },
+        { label: t(lang, 'tray.quit'), click: () => this.options.onQuit() },
       ]),
     )
   }
 
   setTitle(text: string): void {
-    this.tray?.setToolTip(`${this.options.appName}\n${text}`)
+    this.tray?.setToolTip(`${t(this.options.getLanguage(), 'app.name')}\n${text}`)
   }
 
   destroy(): void {

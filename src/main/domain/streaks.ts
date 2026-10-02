@@ -4,8 +4,6 @@ import { isScheduled, lastCountableDay } from './schedule'
 
 export interface StreakOptions {
   today: DateStr
-  /** true — пропуск обнуляет серию; false — серия только копится. */
-  resetEnabled: boolean
   weekStartsOn?: 0 | 1
 }
 
@@ -114,7 +112,7 @@ export function computeStreak(
   entries: Record<DateStr, number> | undefined,
   options: StreakOptions,
 ): StreakStats {
-  const { today, resetEnabled } = options
+  const { today } = options
   const weekStartsOn = options.weekStartsOn ?? 1
   const map = entries ?? {}
   const isWeekly = habit.schedule.mode === 'timesPerWeek'
@@ -124,7 +122,7 @@ export function computeStreak(
   const lastUnitOpen = isWeekly
     ? today < addDays(startOfWeek(lastCountableDay(habit, today), weekStartsOn), 6)
     : lastCountableDay(habit, today) === today
-  const { current, best } = computeRun(units, resetEnabled, lastUnitOpen)
+  const { current, best } = computeRun(units, habit.resetStreakOnMiss, lastUnitOpen)
 
   const weekStart = startOfWeek(today, weekStartsOn)
   const week = countInRange(habit, map, weekStart, minDate(endOfWeek(today, weekStartsOn), today))

@@ -2,6 +2,8 @@ import { useMemo, type ReactNode } from 'react'
 import type { DateStr, Habit } from '../../main/domain/types'
 import { monthGrid, weekdayOf } from '../../main/domain/dates'
 import { isScheduled } from '../../main/domain/schedule'
+import { WEEKDAYS_MON_FIRST } from '../../i18n'
+import { useI18n } from '../i18n'
 
 export interface DayCell {
   date: DateStr
@@ -24,7 +26,6 @@ interface MonthCalendarProps {
   onSelect: (date: DateStr) => void
 }
 
-const WEEKDAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 const MAX_DOTS = 7
 
 export function buildCells(
@@ -68,6 +69,7 @@ export function MonthCalendar({
   weekStartsOn,
   onSelect,
 }: MonthCalendarProps): ReactNode {
+  const { t, lang } = useI18n()
   const cells = useMemo(
     () => buildCells(year, month, habits, entries, weekStartsOn),
     [year, month, habits, entries, weekStartsOn],
@@ -83,7 +85,7 @@ export function MonthCalendar({
       <div className="cal-weekdays" aria-hidden="true">
         {weekdayOrder.map((index) => (
           <div key={index} className="cal-weekday">
-            {WEEKDAY_NAMES[(index + 6) % 7]}
+            {WEEKDAYS_MON_FIRST[lang][(index + 6) % 7]}
           </div>
         ))}
       </div>
@@ -104,11 +106,14 @@ export function MonthCalendar({
           ]
             .filter(Boolean)
             .join(' ')
-          const label = cell.scheduled.length === 0
-            ? 'Ничего не запланировано'
-            : `Выполнено ${cell.done.length} из ${cell.scheduled.length}: ${
-                cell.done.map((h) => h.name).join(', ') || '—'
-              }`
+          const label =
+            cell.scheduled.length === 0
+              ? t('calendar.nothingPlanned')
+              : t('calendar.completedLabel', {
+                  done: cell.done.length,
+                  total: cell.scheduled.length,
+                  names: cell.done.map((h) => h.name).join(', ') || '—',
+                })
           return (
             <button
               key={cell.date}

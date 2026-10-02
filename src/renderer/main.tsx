@@ -5,7 +5,7 @@ import { AppProvider } from './state/app'
 import './styles.css'
 
 const container = document.getElementById('root')
-if (!container) throw new Error('Не найден корневой элемент #root')
+if (!container) throw new Error('Root element #root not found')
 
 createRoot(container).render(
   <StrictMode>

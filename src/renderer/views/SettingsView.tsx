@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import QRCode from 'qrcode'
 import { useApp } from '../state/app'
+import { useI18n } from '../i18n'
 import { api, downloadExport, setStoredToken } from '../api/client'
 
 interface QrProps {
@@ -73,6 +74,7 @@ function Switch({
 
 export function SettingsView(): ReactNode {
   const { state, updateSettings, updateHabit, logout, importData, notify, isDesktop } = useApp()
+  const { t } = useI18n()
   const [portInput, setPortInput] = useState('')
   const [currentPassword, setCurrentPassword] = useState('')
   const [newUsername, setNewUsername] = useState('')
@@ -88,7 +90,7 @@ export function SettingsView(): ReactNode {
   async function applyPort(): Promise<void> {
     const port = Number(portInput)
     if (!Number.isInteger(port) || port < 1024 || port > 65535) {
-      notify('Порт должен быть от 1024 до 65535')
+      notify(t('settings.toast.portRange'))
       return
     }
     if (port === settings.serverPort) return
@@ -96,16 +98,16 @@ export function SettingsView(): ReactNode {
     await updateSettings({ serverPort: port })
     setBusy(false)
     setPortInput('')
-    notify(`Порт изменён на ${port}`, 'info')
+    notify(t('settings.toast.portChanged', { port }), 'info')
   }
 
   async function changeCredentials(): Promise<void> {
     if (newUsername.trim().length < 2) {
-      notify('Имя не короче 2 символов')
+      notify(t('settings.toast.usernameShort'))
       return
     }
     if (currentPassword.length < 8) {
-      notify('Новый пароль не короче 8 символов')
+      notify(t('settings.toast.passwordShort'))
       return
     }
     setBusy(true)
@@ -114,7 +116,7 @@ export function SettingsView(): ReactNode {
       const result = await api.changePassword(currentPassword)
       // Смена пароля обрывает прежние сессии и выдаёт новый токен этому клиенту.
       if (result.token) setStoredToken(result.token)
-      notify('Логин и пароль обновлены', 'info')
+      notify(t('settings.toast.credentialsUpdated'), 'info')
       setNewUsername('')
       setCurrentPassword('')
     } finally {
@@ -130,7 +132,7 @@ export function SettingsView(): ReactNode {
       if (typeof parsed !== 'object' || parsed === null) throw new Error('bad')
       await importData(parsed)
     } catch {
-      notify('Не удалось прочитать файл')
+      notify(t('settings.toast.fileError'))
     } finally {
       setBusy(false)
     }
@@ -139,39 +141,52 @@ export function SettingsView(): ReactNode {
   return (
     <div className="view">
       <div className="view-inner">
-        <h1>Настройки</h1>
+        <h1>{t('settings.title')}</h1>
 
         <section className="card section">
-          <div className="section-title">Серии</div>
-          <Switch
-            label="Сбрасывать серию при пропуске"
-            hint={
-              settings.streakResetEnabled
-                ? 'Пропущенный запланированный день обнуляет серию. Незапланированные дни не влияют.'
-                : 'Серия только копится и никогда не уменьшается: считается суммарное число выполненных дней.'
-            }
-            checked={settings.streakResetEnabled}
-            onChange={(value) => void updateSettings({ streakResetEnabled: value })}
-          />
+          <div className="section-title">{t('settings.language')}</div>
+          <div className="segmented">
+            <button
+              type="button"
+              aria-pressed={settings.language === 'system'}
+              onClick={() => void updateSettings({ language: 'system' })}
+            >
+              {t('settings.langSystem')}
+            </button>
+            <button
+              type="button"
+              aria-pressed={settings.language === 'en'}
+              onClick={() => void updateSettings({ language: 'en' })}
+            >
+              {t('settings.langEn')}
+            </button>
+            <button
+              type="button"
+              aria-pressed={settings.language === 'ru'}
+              onClick={() => void updateSettings({ language: 'ru' })}
+            >
+              {t('settings.langRu')}
+            </button>
+          </div>
         </section>
 
         <section className="card section">
-          <div className="section-title">Приложение</div>
+          <div className="section-title">{t('settings.app')}</div>
           <Switch
-            label="Сворачивать в трей при закрытии окна"
-            hint="Окно закрывается, приложение продолжает работать — интерфейс останется доступен с телефона."
+            label={t('settings.tray')}
+            hint={t('settings.trayHint')}
             checked={settings.trayEnabled}
             onChange={(value) => void updateSettings({ trayEnabled: value })}
           />
           <Switch
-            label="Запускать при входе в систему"
-            hint="Приложение стартует свёрнутым в трей."
+            label={t('settings.launch')}
+            hint={t('settings.launchHint')}
             checked={settings.launchAtLogin}
             onChange={(value) => void updateSettings({ launchAtLogin: value })}
           />
 
           <div className="field" style={{ marginTop: 6 }}>
-            <label>Оформление</label>
+            <label>{t('settings.appearance')}</label>
             <div className="segmented">
               {(['system', 'light', 'dark'] as const).map((theme) => (
                 <button
@@ -180,44 +195,48 @@ export function SettingsView(): ReactNode {
                   aria-pressed={settings.theme === theme}
                   onClick={() => void updateSettings({ theme })}
                 >
-                  {theme === 'system' ? 'Как в системе' : theme === 'light' ? 'Светлое' : 'Тёмное'}
+                  {theme === 'system'
+                    ? t('settings.themeSystem')
+                    : theme === 'light'
+                      ? t('settings.themeLight')
+                      : t('settings.themeDark')}
                 </button>
               ))}
             </div>
           </div>
 
           <div className="field" style={{ marginTop: 6 }}>
-            <label>Первый день недели</label>
+            <label>{t('settings.weekStart')}</label>
             <div className="segmented">
               <button
                 type="button"
                 aria-pressed={settings.weekStartsOn === 1}
                 onClick={() => void updateSettings({ weekStartsOn: 1 })}
               >
-                Понедельник
+                {t('settings.monday')}
               </button>
               <button
                 type="button"
                 aria-pressed={settings.weekStartsOn === 0}
                 onClick={() => void updateSettings({ weekStartsOn: 0 })}
               >
-                Воскресенье
+                {t('settings.sunday')}
               </button>
             </div>
           </div>
         </section>
 
         <section className="card section">
-          <div className="section-title">Доступ с других устройств</div>
+          <div className="section-title">{t('settings.remote')}</div>
           <Switch
-            label="Разрешить вход из локальной сети"
-            hint="Когда выключено, интерфейс открывается только на этом компьютере."
+            label={t('settings.remoteEnable')}
+            hint={t('settings.remoteHint')}
             checked={settings.remoteAccessEnabled}
             onChange={(value) => void updateSettings({ remoteAccessEnabled: value })}
           />
 
           <div className="field">
-            <label htmlFor="port">Порт</label>
+            <label htmlFor="port">{t('settings.port')}</label>
             <div className="row">
               <input
                 id="port"
@@ -229,16 +248,16 @@ export function SettingsView(): ReactNode {
                 onChange={(event) => setPortInput(event.target.value)}
               />
               <button type="button" className="btn" onClick={() => void applyPort()} disabled={busy}>
-                Применить
+                {t('settings.apply')}
               </button>
             </div>
-            <span className="hint">После смены порта окно перезагрузится.</span>
+            <span className="hint">{t('settings.portHint')}</span>
           </div>
 
           {settings.remoteAccessEnabled ? (
             server.lanUrls.length > 0 ? (
               <div className="field">
-                <label>Откройте адрес в браузере телефона или планшета</label>
+                <label>{t('settings.openAddress')}</label>
                 <div className="address-list">
                   {server.lanUrls.map((url) => (
                     <div key={url} className="address">
@@ -248,34 +267,30 @@ export function SettingsView(): ReactNode {
                         className="btn btn-ghost btn-icon"
                         onClick={() => {
                           void navigator.clipboard?.writeText(url)
-                          notify('Адрес скопирован', 'info')
+                          notify(t('settings.addressCopied'), 'info')
                         }}
-                        aria-label="Скопировать адрес"
+                        aria-label={t('settings.copyAddress')}
                       >
                         ⧉
                       </button>
                     </div>
                   ))}
                 </div>
-                <span className="hint">
-                  Потребуется вход: логин {state.username} и пароль, который вы задали при первом запуске.
-                </span>
+                <span className="hint">{t('settings.loginHint', { username: state.username })}</span>
                 {primaryUrl ? <Qr value={primaryUrl} /> : null}
               </div>
             ) : (
-              <div className="hint">
-                Компьютер не подключён к домашней сети — подключите его к тому же Wi-Fi, что и телефон.
-              </div>
+              <div className="hint">{t('settings.notConnected')}</div>
             )
           ) : (
-            <div className="hint">Сейчас интерфейс доступен только на этом компьютере.</div>
+            <div className="hint">{t('settings.localOnly')}</div>
           )}
         </section>
 
         <section className="card section">
-          <div className="section-title">Вход с других устройств</div>
+          <div className="section-title">{t('settings.credentials')}</div>
           <div className="field">
-            <label htmlFor="new-username">Логин</label>
+            <label htmlFor="new-username">{t('settings.username')}</label>
             <input
               id="new-username"
               className="input"
@@ -285,7 +300,7 @@ export function SettingsView(): ReactNode {
             />
           </div>
           <div className="field">
-            <label htmlFor="new-password">Новый пароль</label>
+            <label htmlFor="new-password">{t('settings.newPassword')}</label>
             <input
               id="new-password"
               className="input"
@@ -294,20 +309,18 @@ export function SettingsView(): ReactNode {
               value={currentPassword}
               onChange={(event) => setCurrentPassword(event.target.value)}
             />
-            <span className="hint">
-              Не короче 8 символов, хотя бы одна буква и одна цифра. После смены другие устройства попросят войти заново.
-            </span>
+            <span className="hint">{t('settings.passwordHint')}</span>
           </div>
           <div>
             <button type="button" className="btn btn-primary" onClick={() => void changeCredentials()} disabled={busy}>
-              Обновить
+              {t('settings.update')}
             </button>
           </div>
         </section>
 
         {archived.length > 0 ? (
           <section className="card section">
-            <div className="section-title">В архиве</div>
+            <div className="section-title">{t('settings.archive')}</div>
             <div className="archive-list">
               {archived.map((habit) => (
                 <div key={habit.id} className="archive-row">
@@ -318,29 +331,29 @@ export function SettingsView(): ReactNode {
                     className="btn btn-ghost"
                     onClick={() => void updateHabit(habit.id, { archived: false })}
                   >
-                    Вернуть
+                    {t('settings.restore')}
                   </button>
                 </div>
               ))}
             </div>
-            <span className="hint">История выполнения сохраняется, но в календаре и списке привычка не показывается.</span>
+            <span className="hint">{t('settings.archiveHint')}</span>
           </section>
         ) : null}
 
         <section className="card section">
-          <div className="section-title">Данные</div>
+          <div className="section-title">{t('settings.data')}</div>
           <div className="row wrap">
             <button
               type="button"
               className="btn"
               onClick={() => {
-                void downloadExport().catch(() => notify('Не удалось выгрузить копию'))
+                void downloadExport().catch(() => notify(t('settings.toast.exportError')))
               }}
             >
-              Выгрузить копию
+              {t('settings.export')}
             </button>
             <label className="btn" style={{ cursor: 'pointer' }}>
-              Загрузить копию
+              {t('settings.import')}
               <input
                 type="file"
                 accept="application/json,.json"
@@ -353,17 +366,15 @@ export function SettingsView(): ReactNode {
               />
             </label>
           </div>
-          <span className="hint">
-            Загрузка заменяет текущие привычки и всю историю. Сделайте выгрузку перед заменой.
-          </span>
+          <span className="hint">{t('settings.importHint')}</span>
         </section>
 
         {!isDesktop ? (
           <section className="card section">
-            <div className="section-title">Сеанс</div>
+            <div className="section-title">{t('settings.session')}</div>
             <div>
               <button type="button" className="btn btn-danger" onClick={() => void logout()}>
-                Выйти
+                {t('settings.logout')}
               </button>
             </div>
           </section>

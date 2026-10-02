@@ -61,10 +61,10 @@ export function safeEqual(a: string, b: string): boolean {
 
 export function passwordProblems(password: string): string[] {
   const problems: string[] = []
-  if (password.length < 8) problems.push('Минимум 8 символов')
-  if (password.length > 200) problems.push('Слишком длинный пароль')
-  if (!/[a-zA-Zа-яА-ЯёЁ]/.test(password)) problems.push('Нужна хотя бы одна буква')
-  if (!/[0-9]/.test(password)) problems.push('Нужна хотя бы одна цифра')
+  if (password.length < 8) problems.push('At least 8 characters')
+  if (password.length > 200) problems.push('Password is too long')
+  if (!/[a-zA-Zа-яА-ЯёЁ]/.test(password)) problems.push('At least one letter is required')
+  if (!/[0-9]/.test(password)) problems.push('At least one digit is required')
   return problems
 }
 

@@ -6,6 +6,7 @@ export interface WindowOptions {
   devServerUrl: string | null
   localUrl: string
   iconPath: string | null
+  title: string
   onClosed: () => void
 }
 
@@ -20,7 +21,7 @@ export function createMainWindow(options: WindowOptions): BrowserWindow {
     minHeight: MIN_HEIGHT,
     show: false,
     backgroundColor: '#0f1115',
-    title: 'Трекер привычек',
+    title: options.title,
     icon: options.iconPath ?? undefined,
     autoHideMenuBar: true,
     webPreferences: {

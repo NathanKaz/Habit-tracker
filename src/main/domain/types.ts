@@ -22,6 +22,7 @@ export interface Habit {
   schedule: Schedule
   startDate: DateStr
   endDate: DateStr | null
+  resetStreakOnMiss: boolean
   archived: boolean
   sortOrder: number
   createdAt: string
@@ -43,6 +44,7 @@ export interface Session {
 export interface Settings {
   /** Сбрасывать ли серию при пропуске запланированного дня. */
   streakResetEnabled: boolean
+  language: 'en' | 'ru' | 'system'
   /** Сворачивать в трей вместо выхода при закрытии окна. */
   trayEnabled: boolean
   /** Слушать ли запросы из локальной сети (0.0.0.0) вместо только 127.0.0.1. */

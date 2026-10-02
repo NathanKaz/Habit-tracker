@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react'
 import { useApp } from '../state/app'
+import { useI18n } from '../i18n'
 
 export function Toasts(): ReactNode {
   const { toasts, dismissToast } = useApp()
+  const { t } = useI18n()
   if (toasts.length === 0) return null
   return (
     <div className="toasts" role="status" aria-live="polite">
@@ -13,7 +15,7 @@ export function Toasts(): ReactNode {
             type="button"
             className="btn btn-ghost btn-icon"
             onClick={() => dismissToast(toast.id)}
-            aria-label="Скрыть"
+            aria-label={t('common.dismiss')}
           >
             ✕
           </button>

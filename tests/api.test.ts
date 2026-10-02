@@ -203,7 +203,7 @@ describe('настройки, экспорт и импорт', () => {
     await harness.store.flush()
     await rm(harness.dir, { recursive: true, force: true })
     harness = await startServer({
-      onSettingsChange: (_previous, next) => seen.push(String(next.streakResetEnabled)),
+      onSettingsChange: (_previous, next) => seen.push(next.language),
     })
     expect((await call('PATCH', '/api/settings', {}, 'desktop-token-for-tests')).status).toBe(200)
     seen.length = 0
@@ -211,12 +211,12 @@ describe('настройки, экспорт и импорт', () => {
     const response = await call(
       'PATCH',
       '/api/settings',
-      { streakResetEnabled: false },
+      { language: 'ru' },
       'desktop-token-for-tests',
     )
     expect(response.status).toBe(200)
-    expect((response.data as { streakResetEnabled: boolean }).streakResetEnabled).toBe(false)
-    expect(seen).toEqual(['false'])
+    expect((response.data as { language: string }).language).toBe('ru')
+    expect(seen).toEqual(['ru'])
   })
 
   it('выгружает копию с привычками и загружает её обратно', async () => {

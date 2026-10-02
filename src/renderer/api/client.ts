@@ -10,6 +10,7 @@ export interface HabitDraft {
   schedule: Habit['schedule']
   startDate: DateStr
   endDate: DateStr | null
+  resetStreakOnMiss: boolean
 }
 
 const TOKEN_KEY = 'habit-tracker:token'
@@ -90,7 +91,7 @@ async function request<T>(path: string, init: RequestInit = {}, asText = false):
     const message =
       typeof payload === 'object' && payload !== null && 'error' in payload
         ? String((payload as { error: unknown }).error)
-        : `Ошибка запроса (${response.status})`
+        : `Request failed (${response.status})`
     throw new ApiError(message, response.status)
   }
   return (asText ? text : payload) as T

@@ -7,6 +7,7 @@ export const DATA_VERSION = 1
 
 export const DEFAULT_SETTINGS: Settings = {
   streakResetEnabled: true,
+  language: 'en',
   trayEnabled: true,
   remoteAccessEnabled: true,
   serverPort: DEFAULT_SERVER_PORT,
@@ -42,7 +43,7 @@ function asString(value: unknown, fallback: string): string {
   return typeof value === 'string' ? value : fallback
 }
 
-function parseHabit(raw: unknown): Habit | null {
+function parseHabit(raw: unknown, defaultResetStreakOnMiss = true): Habit | null {
   if (typeof raw !== 'object' || raw === null) return null
   const r = raw as Record<string, unknown>
   const id = asString(r.id, '')
@@ -76,6 +77,7 @@ function parseHabit(raw: unknown): Habit | null {
     schedule,
     startDate,
     endDate: endDate && endDate > startDate ? endDate : null,
+    resetStreakOnMiss: asBool(r.resetStreakOnMiss, defaultResetStreakOnMiss),
     archived: asBool(r.archived, false),
     sortOrder: asNumber(r.sortOrder, 0),
     createdAt: asString(r.createdAt, new Date().toISOString()),
@@ -107,6 +109,8 @@ export function migrate(raw: unknown): AppData {
   const settings = { ...base.settings }
   const rawSettings = typeof r.settings === 'object' && r.settings !== null ? (r.settings as Record<string, unknown>) : {}
   settings.streakResetEnabled = asBool(rawSettings.streakResetEnabled, base.settings.streakResetEnabled)
+  const language = rawSettings.language
+  settings.language = language === 'ru' || language === 'system' ? language : 'en'
   settings.trayEnabled = asBool(rawSettings.trayEnabled, base.settings.trayEnabled)
   settings.remoteAccessEnabled = asBool(rawSettings.remoteAccessEnabled, base.settings.remoteAccessEnabled)
   settings.launchAtLogin = asBool(rawSettings.launchAtLogin, base.settings.launchAtLogin)
@@ -116,7 +120,7 @@ export function migrate(raw: unknown): AppData {
   settings.weekStartsOn = asNumber(rawSettings.weekStartsOn, 1) === 0 ? 0 : 1
 
   const habits = Array.isArray(r.habits)
-    ? r.habits.map(parseHabit).filter((h): h is Habit => h !== null)
+    ? r.habits.map((h) => parseHabit(h, settings.streakResetEnabled)).filter((h): h is Habit => h !== null)
     : []
 
   const user =

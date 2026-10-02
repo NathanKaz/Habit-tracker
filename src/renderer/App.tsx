@@ -1,5 +1,7 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useApp } from './state/app'
+import { useI18n } from './i18n'
+import type { TranslationKey } from '../i18n'
 import { Toasts } from './components/Toasts'
 import { TodayView } from './views/TodayView'
 import { CalendarView } from './views/CalendarView'
@@ -9,21 +11,27 @@ import { LoginView, OfflineView } from './views/LoginView'
 
 type Tab = 'today' | 'calendar' | 'settings'
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'today', label: 'Сегодня' },
-  { id: 'calendar', label: 'Календарь' },
-  { id: 'settings', label: 'Настройки' },
+const TABS: { id: Tab; key: TranslationKey }[] = [
+  { id: 'today', key: 'nav.today' },
+  { id: 'calendar', key: 'nav.calendar' },
+  { id: 'settings', key: 'nav.settings' },
 ]
 
 export function App(): ReactNode {
   const { phase, state, connected } = useApp()
+  const { t, lang } = useI18n()
   const [tab, setTab] = useState<Tab>('today')
+
+  useEffect(() => {
+    document.documentElement.lang = lang
+    document.title = t('app.name')
+  }, [lang, t])
 
   if (phase === 'loading') {
     return (
       <div className="loading">
         <div className="spinner" aria-hidden="true" />
-        <span>Загрузка…</span>
+        <span>{t('common.loading')}</span>
       </div>
     )
   }
@@ -60,13 +68,13 @@ export function App(): ReactNode {
       <header className="topbar">
         <div className="brand">
           <span className="brand-mark" aria-hidden="true" />
-          <span>Трекер привычек</span>
+          <span>{t('app.name')}</span>
           {state?.username ? <span className="brand-user">{state.username}</span> : null}
         </div>
 
-        <span className="conn" title={connected ? 'Соединение с приложением активно' : 'Соединение потеряно'}>
+        <span className="conn" title={connected ? t('conn.active') : t('conn.lost')}>
           <span className={`conn-dot ${connected ? 'on' : 'off'}`} aria-hidden="true" />
-          {connected ? 'на связи' : 'нет связи'}
+          {connected ? t('conn.online') : t('conn.offline')}
         </span>
 
         <nav className="tabs" role="tablist">
@@ -79,7 +87,7 @@ export function App(): ReactNode {
               aria-selected={tab === item.id}
               onClick={() => setTab(item.id)}
             >
-              {item.label}
+              {t(item.key)}
             </button>
           ))}
         </nav>

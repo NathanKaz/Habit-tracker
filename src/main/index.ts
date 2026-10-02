@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import path from 'node:path'
 import { BrowserWindow, app, ipcMain } from 'electron'
 import type { Settings } from './domain/types'
+import { resolveLanguage, t, type Language } from '../i18n'
 import { lanUrls } from './net'
 import { DEFAULT_SERVER_PORT, devApiPort, VITE_DEV_URL } from '../shared/dev'
 import { AppServer } from './server'
@@ -11,7 +12,7 @@ import { createMainWindow, resolveIconPath, resolveTrayIconPath } from './window
 
 const isDev = process.env.HABIT_DEV === '1'
 const VITE_URL = process.env.HABIT_VITE_URL ?? VITE_DEV_URL
-const APP_NAME = 'Трекер привычек'
+const APP_NAME = 'Habit Tracker'
 
 const log = (message: string): void => console.log(`[app] ${message}`)
 
@@ -23,6 +24,10 @@ let server: AppServer | null = null
 let tray: AppTray | null = null
 let mainWindow: BrowserWindow | null = null
 let quitting = false
+
+function currentLanguage(): Language {
+  return resolveLanguage(store?.settings.language, app.getLocale())
+}
 
 function localUrl(): string {
   return `http://127.0.0.1:${store?.settings.serverPort ?? DEFAULT_SERVER_PORT}`
@@ -53,6 +58,7 @@ function openMainWindow(): void {
     devServerUrl: isDev ? VITE_URL : null,
     localUrl: localUrl(),
     iconPath: resolveIconPath(),
+    title: t(currentLanguage(), 'app.name'),
     onClosed: () => {
       mainWindow = null
     },
@@ -79,7 +85,8 @@ function syncTray(): void {
   if (!store) return
   const info = serverInfo()
   const urls = info.lanUrls
-  tray?.setTitle(urls.length > 0 ? `В сети: ${urls[0]}` : 'Только на этом компьютере')
+  const lang = currentLanguage()
+  tray?.setTitle(urls.length > 0 ? t(lang, 'tray.inNetwork', { url: urls[0] ?? '' }) : t(lang, 'tray.localOnly'))
   tray?.refresh()
 }
 
@@ -99,7 +106,7 @@ async function bootstrap(): Promise<void> {
   const trayIcon = resolveTrayIconPath()
   tray = new AppTray({
     iconPath: trayIcon,
-    appName: APP_NAME,
+    getLanguage: currentLanguage,
     getServerInfo: serverInfo,
     getWindow: () => mainWindow,
     onOpenWindow: showMainWindow,
@@ -130,7 +137,7 @@ async function bootstrap(): Promise<void> {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     log(`не удалось занять порт ${store.settings.serverPort}: ${message}`)
-    tray.setTitle(`Ошибка: порт ${store.settings.serverPort} занят`)
+    tray.setTitle(t(currentLanguage(), 'tray.portBusy', { port: store.settings.serverPort }))
   }
 
   syncTray()

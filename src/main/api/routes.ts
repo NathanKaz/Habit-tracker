@@ -47,7 +47,7 @@ function fail(res: Response, status: number, error: string): void {
 }
 
 function firstIssue(error: ZodError): string {
-  return error.issues[0]?.message ?? 'Некорректные данные'
+  return error.issues[0]?.message ?? 'Invalid data'
 }
 
 function clientIp(req: Request): string {
@@ -67,7 +67,7 @@ export function createApiRouter(ctx: RouterContext): Router {
   const requireAuth = (req: Request, res: Response, next: (err?: unknown) => void): void => {
     const header = req.get('authorization') ?? ''
     const token = header.startsWith('Bearer ') ? header.slice(7).trim() : ''
-    if (!token) return fail(res, 401, 'Требуется вход')
+    if (!token) return fail(res, 401, 'Authentication required')
     const authed = req as AuthedRequest
     if (ctx.desktopToken && safeEqual(token, ctx.desktopToken)) {
       authed.authKind = 'desktop'
@@ -75,7 +75,7 @@ export function createApiRouter(ctx: RouterContext): Router {
     }
     const tokenHash = hashToken(token)
     const session = store.raw.sessions.find((s) => s.tokenHash === tokenHash)
-    if (!session) return fail(res, 401, 'Сессия недействительна, войдите заново')
+    if (!session) return fail(res, 401, 'Session is invalid, please sign in again')
     authed.authKind = 'session'
     authed.tokenHash = tokenHash
     store.touchSession(tokenHash)
@@ -92,9 +92,9 @@ export function createApiRouter(ctx: RouterContext): Router {
   // задан, войти нельзя ни с кем, но закрывать путь всё равно нужно.
   router.post('/auth/setup', async (req, res) => {
     if (!isLoopback(clientIp(req))) {
-      return fail(res, 403, 'Учётную запись можно создать только на этом компьютере')
+      return fail(res, 403, 'The account can only be created on this computer')
     }
-    if (store.raw.user) return fail(res, 409, 'Учётная запись уже создана')
+    if (store.raw.user) return fail(res, 409, 'Account already exists')
 
     const parsed = credentialsSchema.safeParse(req.body)
     if (!parsed.success) return fail(res, 400, firstIssue(parsed.error))
@@ -113,12 +113,12 @@ export function createApiRouter(ctx: RouterContext): Router {
   router.post('/auth/login', async (req, res) => {
     const ip = clientIp(req)
     const parsed = credentialsSchema.safeParse(req.body)
-    if (!parsed.success) return fail(res, 400, 'Неверный логин или пароль')
+    if (!parsed.success) return fail(res, 400, 'Invalid username or password')
 
     const username = normalizeUsername(parsed.data.username)
     const waitMs = throttle.retryAfterMs(ip, username)
     if (waitMs > 0) {
-      return res.status(429).json({ error: `Слишком много попыток. Повторите через ${Math.ceil(waitMs / 60000)} мин.` })
+      return res.status(429).json({ error: `Too many attempts. Try again in ${Math.ceil(waitMs / 60000)} min.` })
     }
 
     const user = store.raw.user
@@ -132,7 +132,7 @@ export function createApiRouter(ctx: RouterContext): Router {
     const okUser = user !== null && safeEqual(user.username, username)
     if (!okUser || !okPass) {
       throttle.registerFailure(ip, username)
-      return fail(res, 401, 'Неверный логин или пароль')
+      return fail(res, 401, 'Invalid username or password')
     }
 
     throttle.registerSuccess(ip, username)
@@ -153,7 +153,7 @@ export function createApiRouter(ctx: RouterContext): Router {
     const problems = passwordProblems(parsed.data.password)
     if (problems.length > 0) return fail(res, 400, `${problems.join('. ')}.`)
     const user = store.raw.user
-    if (!user) return fail(res, 400, 'Учётная запись не настроена')
+    if (!user) return fail(res, 400, 'Account is not configured')
 
     const { salt, hash } = await hashPassword(parsed.data.password)
     store.setUser({ ...user, passwordHash: hash, salt })
@@ -170,7 +170,7 @@ export function createApiRouter(ctx: RouterContext): Router {
     const parsed = usernameSchema.safeParse(req.body)
     if (!parsed.success) return fail(res, 400, firstIssue(parsed.error))
     const user = store.raw.user
-    if (!user) return fail(res, 400, 'Учётная запись не настроена')
+    if (!user) return fail(res, 400, 'Account is not configured')
     store.setUser({ ...user, username: normalizeUsername(parsed.data.username) })
     ctx.broadcast()
     res.json({ ok: true })
@@ -202,16 +202,16 @@ export function createApiRouter(ctx: RouterContext): Router {
     if (!parsed.success) return fail(res, 400, firstIssue(parsed.error))
     const patch = parsed.data
     if (patch.startDate && patch.endDate && patch.endDate < patch.startDate) {
-      return fail(res, 400, 'Дата окончания раньше даты начала')
+      return fail(res, 400, 'End date is before start date')
     }
     const habit = store.updateHabit(req.params.id as string, patch)
-    if (!habit) return fail(res, 404, 'Привычка не найдена')
+    if (!habit) return fail(res, 404, 'Habit not found')
     ctx.broadcast()
     res.json(habit)
   })
 
   router.delete('/habits/:id', requireAuth, (req, res) => {
-    if (!store.deleteHabit(req.params.id as string)) return fail(res, 404, 'Привычка не найдена')
+    if (!store.deleteHabit(req.params.id as string)) return fail(res, 404, 'Habit not found')
     ctx.broadcast()
     res.json({ ok: true })
   })
@@ -219,12 +219,12 @@ export function createApiRouter(ctx: RouterContext): Router {
   // --- отметки выполнения ----------------------------------------------------
 
   function badDate(res: Response): void {
-    fail(res, 400, 'Дата должна быть в формате ГГГГ-ММ-ДД')
+    fail(res, 400, 'Date must be in YYYY-MM-DD format')
   }
 
   function requireHabit(res: Response, habitId: string): boolean {
     if (!store.habit(habitId)) {
-      fail(res, 404, 'Привычка не найдена')
+      fail(res, 404, 'Habit not found')
       return false
     }
     return true
@@ -285,11 +285,11 @@ export function createApiRouter(ctx: RouterContext): Router {
 
   router.post('/import', requireAuth, (req, res) => {
     const parsed = importSchema.safeParse(req.body)
-    if (!parsed.success) return fail(res, 400, 'Файл повреждён или имеет неверный формат')
+    if (!parsed.success) return fail(res, 400, 'File is corrupted or has an invalid format')
     try {
       store.importJson(JSON.stringify(req.body), true)
     } catch {
-      return fail(res, 400, 'Файл повреждён или имеет неверный формат')
+      return fail(res, 400, 'File is corrupted or has an invalid format')
     }
     ctx.broadcast()
     return res.json({ ok: true })

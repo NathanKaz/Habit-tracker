@@ -1,8 +1,10 @@
 import { useState, type ReactNode } from 'react'
 import { useApp } from '../state/app'
+import { useI18n } from '../i18n'
 
 export function LoginView(): ReactNode {
   const { login } = useApp()
+  const { t } = useI18n()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -14,7 +16,7 @@ export function LoginView(): ReactNode {
     try {
       await login(username, password)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не удалось войти')
+      setError(err instanceof Error ? err.message : t('auth.login.error'))
       setBusy(false)
     }
   }
@@ -30,14 +32,14 @@ export function LoginView(): ReactNode {
       >
         <div className="auth-mark" aria-hidden="true" />
         <div>
-          <div className="auth-title">Вход</div>
+          <div className="auth-title">{t('auth.login.title')}</div>
           <p className="muted" style={{ margin: '6px 0 0' }}>
-            Введите логин и пароль, заданные на этом компьютере.
+            {t('auth.login.body')}
           </p>
         </div>
 
         <div className="field">
-          <label htmlFor="login-user">Логин</label>
+          <label htmlFor="login-user">{t('auth.login.username')}</label>
           <input
             id="login-user"
             className="input"
@@ -49,7 +51,7 @@ export function LoginView(): ReactNode {
         </div>
 
         <div className="field">
-          <label htmlFor="login-pass">Пароль</label>
+          <label htmlFor="login-pass">{t('auth.login.password')}</label>
           <input
             id="login-pass"
             className="input"
@@ -63,7 +65,7 @@ export function LoginView(): ReactNode {
         {error ? <div className="error-text">{error}</div> : null}
 
         <button type="submit" className="btn btn-primary" disabled={busy || !username || !password}>
-          {busy ? 'Входим…' : 'Войти'}
+          {busy ? t('auth.login.busy') : t('auth.login.submit')}
         </button>
       </form>
     </div>
@@ -72,20 +74,20 @@ export function LoginView(): ReactNode {
 
 export function OfflineView(): ReactNode {
   const { offlineMessage, retry } = useApp()
+  const { t } = useI18n()
   return (
     <div className="centered">
       <div className="auth-card">
         <div className="auth-mark" aria-hidden="true" />
         <div>
-          <div className="auth-title">Нет связи с компьютером</div>
+          <div className="auth-title">{t('auth.offline.title')}</div>
           <p className="muted" style={{ margin: '6px 0 0' }}>
-            Приложение хранит данные только на своём компьютере. Убедитесь, что он включён, а в настройках
-            разрешён доступ из локальной сети, и что телефон подключён к той же сети.
+            {t('auth.offline.body')}
           </p>
         </div>
         {offlineMessage ? <div className="error-text">{offlineMessage}</div> : null}
         <button type="button" className="btn btn-primary" onClick={retry}>
-          Повторить
+          {t('auth.retry')}
         </button>
       </div>
     </div>

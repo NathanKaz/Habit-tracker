@@ -125,11 +125,11 @@ export class AppServer {
       try {
         originHost = new URL(origin).host
       } catch {
-        res.status(403).json({ error: 'Недопустимый источник запроса' })
+        res.status(403).json({ error: 'Invalid request origin' })
         return
       }
       if (originHost !== host) {
-        res.status(403).json({ error: 'Недопустимый источник запроса' })
+        res.status(403).json({ error: 'Invalid request origin' })
         return
       }
     }
@@ -168,7 +168,7 @@ export class AppServer {
     }
     const message = err instanceof Error ? err.message : String(err)
     this.options.log(`[server] ошибка запроса: ${message}`)
-    res.status(500).json({ error: 'Внутренняя ошибка сервера' })
+    res.status(500).json({ error: 'Internal server error' })
   }
 
   private isTokenValid(token: string): boolean {
@@ -321,7 +321,7 @@ export class AppServer {
     clearInterval(this.sweepTimer)
     for (const ws of this.clients) {
       try {
-        ws.close(1001, 'Приложение закрывается')
+        ws.close(1001, 'Application is closing')
       } catch {
         /* клиент уже отвалился */
       }

@@ -19,6 +19,7 @@ import {
   type HabitDraft,
   type Settings,
 } from '../api/client'
+import { resolveLanguage, t, type Language } from '../../i18n'
 
 export type Phase = 'loading' | 'onboarding' | 'login' | 'ready' | 'offline'
 
@@ -72,6 +73,11 @@ export function AppProvider({ children }: { children: ReactNode }): ReactNode {
   const stateRef = useRef<AppState | null>(null)
   stateRef.current = state
 
+  const lang = resolveLanguage(
+    state?.settings.language,
+    typeof navigator === 'undefined' ? undefined : navigator.language,
+  )
+
   const dismissToast = useCallback((id: number) => {
     setToasts((current) => current.filter((toast) => toast.id !== id))
   }, [])
@@ -98,9 +104,9 @@ export function AppProvider({ children }: { children: ReactNode }): ReactNode {
         setState(null)
         return
       }
-      notify(describeError(err))
+      notify(describeError(err, lang))
     }
-  }, [notify])
+  }, [notify, lang])
 
   // Первичное определение: настроена ли учётная запись и есть ли действующий токен.
   useEffect(() => {
@@ -129,7 +135,7 @@ export function AppProvider({ children }: { children: ReactNode }): ReactNode {
         // Сервер не отвечает: с телефона это бывает, когда компьютер выключен
         // или в настройках выключен доступ из локальной сети.
         setTokenState({ status: 'none' })
-        setOfflineMessage(describeError(err))
+        setOfflineMessage(describeError(err, lang))
         setPhase('offline')
       }
     })()
@@ -221,9 +227,9 @@ export function AppProvider({ children }: { children: ReactNode }): ReactNode {
       setStoredToken(result.token)
       setTokenState({ status: 'ready', token: result.token })
       setPhase('ready')
-      notify('Готово. Привычки можно заводить.', 'info')
+      notify(t(lang, 'toast.setupDone'), 'info')
     },
-    [notify],
+    [notify, lang],
   )
 
   const login = useCallback(
@@ -255,12 +261,12 @@ export function AppProvider({ children }: { children: ReactNode }): ReactNode {
       try {
         await action()
       } catch (err) {
-        notify(describeError(err))
+        notify(describeError(err, lang))
       } finally {
         void refresh()
       }
     },
-    [notify, refresh],
+    [notify, refresh, lang],
   )
 
   const createHabit = useCallback(
@@ -315,9 +321,9 @@ export function AppProvider({ children }: { children: ReactNode }): ReactNode {
   const importData = useCallback(
     async (payload: unknown) => {
       await run(() => api.importData(payload))
-      notify('Данные заменены', 'info')
+      notify(t(lang, 'toast.imported'), 'info')
     },
-    [notify, run],
+    [notify, run, lang],
   )
 
   function currentValue(habitId: string, date: DateStr): number {
@@ -394,8 +400,8 @@ export function useApp(): AppContextValue {
   return context
 }
 
-function describeError(err: unknown): string {
+function describeError(err: unknown, lang: Language): string {
   if (err instanceof ApiError) return err.message
   if (err instanceof Error) return err.message
-  return 'Что-то пошло не так'
+  return t(lang, 'error.generic')
 }

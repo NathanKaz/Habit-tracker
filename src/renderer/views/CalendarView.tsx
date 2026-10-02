@@ -1,13 +1,16 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import type { DateStr, Habit } from '../../main/domain/types'
-import { addMonths, formatDateRu, monthNameNominative, parseDate, startOfMonth, todayStr } from '../../main/domain/dates'
+import { addMonths, parseDate, startOfMonth, todayStr } from '../../main/domain/dates'
+import { formatDate, monthName } from '../../i18n'
 import { useApp } from '../state/app'
+import { useI18n } from '../i18n'
 import { DayPanel } from '../components/DayPanel'
 import { Legend, MonthCalendar } from '../components/MonthCalendar'
 import { HabitEditor } from '../components/HabitEditor'
 
 export function CalendarView(): ReactNode {
   const { state } = useApp()
+  const { t, lang } = useI18n()
   const today = state?.today ?? todayStr()
   const [cursor, setCursor] = useState<DateStr>(() => startOfMonth(today))
   const [selected, setSelected] = useState<DateStr>(today)
@@ -28,24 +31,24 @@ export function CalendarView(): ReactNode {
     <div className="view">
       <div className="view-inner">
         <div className="row row-between wrap">
-          <h1>Календарь</h1>
+          <h1>{t('calendar.title')}</h1>
           <div className="cal-nav">
             <button
               type="button"
               className="btn btn-icon"
               onClick={() => setCursor(addMonths(cursor, -1))}
-              aria-label="Предыдущий месяц"
+              aria-label={t('calendar.prev')}
             >
               ←
             </button>
             <span className="cal-month">
-              {monthNameNominative(month)} {year}
+              {monthName(lang, month)} {year}
             </span>
             <button
               type="button"
               className="btn btn-icon"
               onClick={() => setCursor(addMonths(cursor, 1))}
-              aria-label="Следующий месяц"
+              aria-label={t('calendar.next')}
             >
               →
             </button>
@@ -57,7 +60,7 @@ export function CalendarView(): ReactNode {
                 setSelected(today)
               }}
             >
-              Сегодня
+              {t('calendar.today')}
             </button>
           </div>
         </div>
@@ -77,8 +80,7 @@ export function CalendarView(): ReactNode {
             <div style={{ marginTop: 14 }}>
               <Legend habits={habits} />
               <div className="hint" style={{ marginTop: 8 }}>
-                Точка — выполнено, кольцо — частично. Полоса снизу показывает выполнение дня.
-                Нажмите на день, чтобы изменить отметки за него, включая прошлые.
+                {t('calendar.legend')}
               </div>
             </div>
           </div>
@@ -92,9 +94,7 @@ export function CalendarView(): ReactNode {
           />
         </div>
 
-        <div className="hint">
-          Выбрано: {formatDateRu(selected, true)}
-        </div>
+        <div className="hint">{t('calendar.selected', { date: formatDate(lang, selected, true) })}</div>
 
         {editing !== undefined ? <HabitEditor habit={editing} onClose={() => setEditing(undefined)} /> : null}
       </div>

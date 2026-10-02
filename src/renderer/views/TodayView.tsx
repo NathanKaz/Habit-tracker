@@ -1,13 +1,15 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import type { Habit } from '../../main/domain/types'
-import { formatDateRu } from '../../main/domain/dates'
 import { isScheduled } from '../../main/domain/schedule'
+import { formatDate } from '../../i18n'
 import { useApp } from '../state/app'
+import { useI18n } from '../i18n'
 import { HabitCard } from '../components/HabitCard'
 import { HabitEditor } from '../components/HabitEditor'
 
 export function TodayView(): ReactNode {
   const { state } = useApp()
+  const { t, lang } = useI18n()
   const [editing, setEditing] = useState<Habit | null | undefined>(undefined)
 
   const habits = useMemo(
@@ -27,8 +29,8 @@ export function TodayView(): ReactNode {
       <div className="view-inner">
         <div className="today-head">
           <div>
-            <h1>Сегодня</h1>
-            <div className="muted">{formatDateRu(today, true)}</div>
+            <h1>{t('today.title')}</h1>
+            <div className="muted">{formatDate(lang, today, true)}</div>
           </div>
           <div className="today-progress">
             <span className="today-progress-value">
@@ -36,7 +38,11 @@ export function TodayView(): ReactNode {
               <span className="faint"> / {planned.length}</span>
             </span>
             <span className="hint">
-              {planned.length === 0 ? 'на сегодня пусто' : done.length === planned.length ? 'всё выполнено' : 'выполнено'}
+              {planned.length === 0
+                ? t('today.empty')
+                : done.length === planned.length
+                  ? t('today.allDone')
+                  : t('today.done')}
             </span>
           </div>
         </div>
@@ -47,13 +53,11 @@ export function TodayView(): ReactNode {
               🎯
             </span>
             <div>
-              <h2>Привычек пока нет</h2>
-              <p className="muted">
-                Заведите первую привычку с целью на день — и отмечайте выполнение каждый день.
-              </p>
+              <h2>{t('today.noHabits.title')}</h2>
+              <p className="muted">{t('today.noHabits.body')}</p>
             </div>
             <button type="button" className="btn btn-primary" onClick={() => setEditing(null)}>
-              Добавить привычку
+              {t('today.addHabit')}
             </button>
           </div>
         ) : (
@@ -73,7 +77,7 @@ export function TodayView(): ReactNode {
             </div>
             <div>
               <button type="button" className="btn" onClick={() => setEditing(null)}>
-                + Добавить привычку
+                + {t('today.addHabit')}
               </button>
             </div>
           </>
@@ -90,6 +94,7 @@ export function TodayView(): ReactNode {
 /** Небольшая сводка по неделе и месяцу — помогает заметить общую картину. */
 function RoutineSummary(): ReactNode {
   const { state } = useApp()
+  const { t } = useI18n()
   if (!state) return null
   const habits = state.habits.filter((h) => !h.archived)
   if (habits.length === 0) return null
@@ -112,13 +117,13 @@ function RoutineSummary(): ReactNode {
 
   return (
     <div className="card section">
-      <div className="section-title">Итоги</div>
+      <div className="section-title">{t('summary.title')}</div>
       <div className="row wrap">
         <div className="grow">
           <div className="row row-between">
-            <span className="hint">Этот месяц</span>
+            <span className="hint">{t('summary.thisMonth')}</span>
             <span className="hint">
-              {totals.monthDone} из {totals.monthPlanned} · {monthPercent}%
+              {t('summary.ratio', { done: totals.monthDone, planned: totals.monthPlanned, percent: monthPercent })}
             </span>
           </div>
           <div className="progress-track">
@@ -127,9 +132,9 @@ function RoutineSummary(): ReactNode {
         </div>
         <div className="grow">
           <div className="row row-between">
-            <span className="hint">Всё время</span>
+            <span className="hint">{t('summary.allTime')}</span>
             <span className="hint">
-              {totals.totalDone} из {totals.totalPlanned} · {allPercent}%
+              {t('summary.ratio', { done: totals.totalDone, planned: totals.totalPlanned, percent: allPercent })}
             </span>
           </div>
           <div className="progress-track">

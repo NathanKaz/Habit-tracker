@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { DateStr, Habit } from '../src/main/domain/types'
 import { addDays, monthGrid, parseDate, weekdayOf } from '../src/main/domain/dates'
-import { isScheduled, describeSchedule } from '../src/main/domain/schedule'
+import { isScheduled, describeSchedule, dateForScheduledCount } from '../src/main/domain/schedule'
 import { computeStreak, isDayDone } from '../src/main/domain/streaks'
 
 function habit(overrides: Partial<Habit> = {}): Habit {
@@ -17,6 +17,7 @@ function habit(overrides: Partial<Habit> = {}): Habit {
     startDate: '2026-10-01',
     endDate: null,
     archived: false,
+    resetStreakOnMiss: true,
     sortOrder: 0,
     createdAt: '2026-10-01T00:00:00.000Z',
     ...overrides,
@@ -89,8 +90,23 @@ describe('расписание', () => {
   })
 })
 
+describe('дата по числу запланированных выполнений', () => {
+  it('считает только выбранные дни недели', () => {
+    const schedule = { mode: 'weekdays', days: [1, 3, 5] } as const
+    expect(dateForScheduledCount(schedule, '2026-10-05', 1)).toBe('2026-10-05') // пн
+    expect(dateForScheduledCount(schedule, '2026-10-05', 2)).toBe('2026-10-07') // ср
+    expect(dateForScheduledCount(schedule, '2026-10-05', 3)).toBe('2026-10-09') // пт
+    expect(dateForScheduledCount(schedule, '2026-10-05', 4)).toBe('2026-10-12') // следующий пн
+  })
+
+  it('для ежедневного расписания совпадает с календарными днями', () => {
+    expect(dateForScheduledCount({ mode: 'daily' }, '2026-10-01', 1)).toBe('2026-10-01')
+    expect(dateForScheduledCount({ mode: 'daily' }, '2026-10-01', 5)).toBe('2026-10-05')
+  })
+})
+
 describe('серия: сброс включён', () => {
-  const options = { today: '2026-10-10', resetEnabled: true }
+  const options = { today: '2026-10-10' }
 
   it('считает все дни подряд', () => {
     const h = habit({ startDate: '2026-10-05' })
@@ -125,7 +141,7 @@ describe('серия: сброс включён', () => {
 
   // Пн–Пт, старт 5 октября, «сегодня» 13 октября (вт)
   const weekdayHabit = habit({ startDate: '2026-10-05', schedule: { mode: 'weekdays', days: [1, 2, 3, 4, 5] } })
-  const weekdayOptions = { today: '2026-10-13', resetEnabled: true }
+  const weekdayOptions = { today: '2026-10-13' }
 
   it('пропуск незапланированного дня серию не рвёт', () => {
     // сб 10 и вс 11 пропущены, все будни выполнены
@@ -153,7 +169,7 @@ describe('серия: сброс включён', () => {
     const s = computeStreak(
       weekdayHabit,
       done('2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16'),
-      { today: '2026-10-17', resetEnabled: true }, // суббота
+      { today: '2026-10-17' }, // суббота
     )
     expect(s.current).toBe(5)
     expect(s.todayScheduled).toBe(false)
@@ -173,7 +189,7 @@ describe('серия: сброс включён', () => {
 })
 
 describe('серия: счётчик', () => {
-  const options = { today: '2026-10-10', resetEnabled: true }
+  const options = { today: '2026-10-10' }
 
   it('частичное выполнение не засчитывается', () => {
     const h = habit({ startDate: '2026-10-08', type: 'count', targetPerDay: 8, unit: 'стаканов' })
@@ -194,8 +210,8 @@ describe('серия: счётчик', () => {
 
 describe('серия: сброс выключен', () => {
   it('серия копится и не уменьшается', () => {
-    const h = habit({ startDate: '2026-10-01' })
-    const options = { today: '2026-10-10', resetEnabled: false }
+    const h = habit({ startDate: '2026-10-01', resetStreakOnMiss: false })
+    const options = { today: '2026-10-10' }
     const sparse = done('2026-10-01', '2026-10-03', '2026-10-05', '2026-10-08', '2026-10-09', '2026-10-10')
     const s = computeStreak(h, sparse, options)
     expect(s.current).toBe(6)
@@ -209,7 +225,7 @@ describe('серия: сброс выключен', () => {
 })
 
 describe('серия: N раз в неделю', () => {
-  const options = { today: '2026-10-10', resetEnabled: true, weekStartsOn: 1 as const }
+  const options = { today: '2026-10-10', weekStartsOn: 1 as const }
   const h = habit({ startDate: '2026-09-28', schedule: { mode: 'timesPerWeek', timesPerWeek: 3 } })
 
   it('считает недели, в которых набрана квота', () => {
@@ -243,7 +259,7 @@ describe('прогресс за месяц и неделю', () => {
   it('считает выполненные и запланированные дни месяца', () => {
     const h = habit({ startDate: '2026-10-01', schedule: { mode: 'weekdays', days: [1, 2, 3, 4, 5] } })
     const entries = done('2026-10-01', '2026-10-02', '2026-10-05', '2026-10-06')
-    const s = computeStreak(h, entries, { today: '2026-10-07', resetEnabled: true })
+    const s = computeStreak(h, entries, { today: '2026-10-07' })
     // 1, 2, 5, 6, 7 октября — будни до 7-го
     expect(s.monthPlanned).toBe(5)
     expect(s.monthDone).toBe(4)

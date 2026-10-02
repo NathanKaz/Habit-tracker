@@ -3,24 +3,24 @@ import { isDateStr } from '../domain/dates'
 
 const dateStr = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Дата должна быть в формате ГГГГ-ММ-ДД')
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format')
   // Проверка в локальной таймзоне: через toISOString() дата «уезжала» на день
   // на востоке UTC+12 и дальше.
-  .refine((value) => isDateStr(value), 'Такой даты не существует')
+  .refine((value) => isDateStr(value), 'That date does not exist')
 
 export const credentialsSchema = z.object({
   username: z
     .string()
     .trim()
-    .min(2, 'Имя не короче 2 символов')
-    .max(40, 'Имя не длиннее 40 символов')
-    .regex(/^[\p{L}\p{N}_.-]+$/u, 'Только буквы, цифры, точка, дефис и подчёркивание'),
-  password: z.string().min(8, 'Пароль не короче 8 символов').max(200, 'Пароль слишком длинный'),
+    .min(2, 'Username must be at least 2 characters')
+    .max(40, 'Username must be at most 40 characters')
+    .regex(/^[\p{L}\p{N}_.-]+$/u, 'Only letters, digits, dot, hyphen and underscore are allowed'),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(200, 'Password is too long'),
 })
 
 /** Смена пароля: имя пользователя здесь не передаётся и не меняется. */
 export const passwordSchema = z.object({
-  password: z.string().min(8, 'Пароль не короче 8 символов').max(200, 'Пароль слишком длинный'),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(200, 'Password is too long'),
 })
 
 export const usernameSchema = z.object({
@@ -31,24 +31,25 @@ export const scheduleSchema = z.discriminatedUnion('mode', [
   z.object({ mode: z.literal('daily') }),
   z.object({
     mode: z.literal('weekdays'),
-    days: z.array(z.number().int().min(0).max(6)).min(1, 'Выберите хотя бы один день'),
+    days: z.array(z.number().int().min(0).max(6)).min(1, 'Select at least one day'),
   }),
   z.object({
     mode: z.literal('timesPerWeek'),
-    timesPerWeek: z.number().int().min(1, 'Минимум 1 раз').max(7, 'Максимум 7 раз'),
+    timesPerWeek: z.number().int().min(1, 'At least 1 time').max(7, 'At most 7 times'),
   }),
 ])
 
 export const habitInputSchema = z.object({
-  name: z.string().trim().min(1, 'Введите название').max(80, 'Название слишком длинное'),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Цвет должен быть в формате #rrggbb'),
+  name: z.string().trim().min(1, 'Enter a name').max(80, 'Name is too long'),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Color must be in #rrggbb format'),
   icon: z.string().max(8).default('✅'),
   type: z.enum(['boolean', 'count']),
-  targetPerDay: z.number().int().min(1, 'Минимум 1').max(9999, 'Слишком много'),
+  targetPerDay: z.number().int().min(1, 'At least 1').max(9999, 'Too many'),
   unit: z.string().max(24).default(''),
   schedule: scheduleSchema,
   startDate: dateStr,
   endDate: dateStr.nullable().default(null),
+  resetStreakOnMiss: z.boolean().default(true),
 })
 
 export const habitPatchSchema = z.object({
@@ -61,12 +62,13 @@ export const habitPatchSchema = z.object({
   schedule: scheduleSchema.optional(),
   startDate: dateStr.optional(),
   endDate: dateStr.nullable().optional(),
+  resetStreakOnMiss: z.boolean().optional(),
   archived: z.boolean().optional(),
   sortOrder: z.number().int().min(0).max(10000).optional(),
 })
 
 export const entryValueSchema = z.object({
-  value: z.number().int().min(0, 'Значение не может быть отрицательным').max(99999, 'Слишком большое значение'),
+  value: z.number().int().min(0, 'Value cannot be negative').max(99999, 'Value is too large'),
 })
 
 export const entryDeltaSchema = z.object({
@@ -74,18 +76,18 @@ export const entryDeltaSchema = z.object({
 })
 
 export const settingsSchema = z.object({
-  streakResetEnabled: z.boolean().optional(),
+  language: z.enum(['en', 'ru', 'system']).optional(),
   trayEnabled: z.boolean().optional(),
   remoteAccessEnabled: z.boolean().optional(),
   launchAtLogin: z.boolean().optional(),
-  serverPort: z.number().int().min(1024, 'Порт от 1024').max(65535, 'Порт до 65535').optional(),
+  serverPort: z.number().int().min(1024, 'Port must be at least 1024').max(65535, 'Port must be at most 65535').optional(),
   theme: z.enum(['system', 'light', 'dark']).optional(),
   weekStartsOn: z.union([z.literal(0), z.literal(1)]).optional(),
 })
 
 export const importSchema = z.object({
   version: z.number().optional(),
-  habits: z.array(z.unknown()).max(500, 'Слишком много привычек'),
+  habits: z.array(z.unknown()).max(500, 'Too many habits'),
   entries: z.record(z.string(), z.unknown()).optional(),
 })
 

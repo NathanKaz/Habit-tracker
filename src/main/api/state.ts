@@ -20,7 +20,6 @@ export function buildState(ctx: StateContext): AppState {
     entries: store.raw.entries,
     stats: computeAllStreaks(store.habits, store.raw.entries, {
       today,
-      resetEnabled: settings.streakResetEnabled,
       weekStartsOn: settings.weekStartsOn,
     }),
     server: {

@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { useI18n } from '../i18n'
 
 interface ModalProps {
   title: string
@@ -9,6 +10,7 @@ interface ModalProps {
 
 /** Модальное окно: блокирует прокрутку фона и закрывается по Esc. */
 export function Modal({ title, onClose, children, footer }: ModalProps): ReactNode {
+  const { t } = useI18n()
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') onClose()
@@ -35,7 +37,7 @@ export function Modal({ title, onClose, children, footer }: ModalProps): ReactNo
       <div className="modal">
         <div className="modal-head">
           <h2>{title}</h2>
-          <button type="button" className="btn btn-ghost btn-icon" onClick={onClose} aria-label="Закрыть">
+          <button type="button" className="btn btn-ghost btn-icon" onClick={onClose} aria-label={t('common.close')}>
             ✕
           </button>
         </div>
