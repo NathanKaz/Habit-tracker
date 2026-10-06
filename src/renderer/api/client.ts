@@ -7,6 +7,8 @@ export interface HabitDraft {
   type: Habit['type']
   targetPerDay: number
   unit: string
+  note: string
+  reminders: string[]
   schedule: Habit['schedule']
   startDate: DateStr
   endDate: DateStr | null

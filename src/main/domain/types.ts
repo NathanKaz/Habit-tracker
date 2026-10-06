@@ -19,6 +19,10 @@ export interface Habit {
   targetPerDay: number
   /** Единица измерения для счётчиков: «стаканов», «мин» и т.п. */
   unit: string
+  /** Свободный комментарий: зачем привычка и как её выполнять. */
+  note: string
+  /** Время напоминаний в формате 'HH:MM', без дублей и по возрастанию. */
+  reminders: string[]
   schedule: Schedule
   startDate: DateStr
   endDate: DateStr | null
@@ -26,6 +30,12 @@ export interface Habit {
   archived: boolean
   sortOrder: number
   createdAt: string
+}
+
+/** Какие напоминания привычки уже показаны сегодня. */
+export interface ReminderFired {
+  date: DateStr
+  times: string[]
 }
 
 export interface UserAccount {
@@ -47,6 +57,8 @@ export interface Settings {
   language: 'en' | 'ru' | 'system'
   /** Сворачивать в трей вместо выхода при закрытии окна. */
   trayEnabled: boolean
+  /** Показывать напоминания о невыполненных привычках. */
+  remindersEnabled: boolean
   /** Слушать ли запросы из локальной сети (0.0.0.0) вместо только 127.0.0.1. */
   remoteAccessEnabled: boolean
   serverPort: number
@@ -63,6 +75,8 @@ export interface AppData {
   habits: Habit[]
   /** habitId -> (YYYY-MM-DD -> значение: 0 = не выполнено, 1 = выполнено, N = счётчик) */
   entries: Record<string, Record<DateStr, number>>
+  /** habitId -> какие напоминания уже показаны: без этого они повторялись бы после перезапуска. */
+  reminderFired: Record<string, ReminderFired>
 }
 
 export type StreakUnit = 'days' | 'weeks'

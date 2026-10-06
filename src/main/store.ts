@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import type { AppData, DateStr, Habit, Settings } from './domain/types'
+import { normalizeTimes } from './domain/reminders'
 import { emptyData, migrate, newHabitId } from './model'
 
 export interface NewHabitInput {
@@ -10,6 +11,8 @@ export interface NewHabitInput {
   type: Habit['type']
   targetPerDay: number
   unit: string
+  note: string
+  reminders: string[]
   schedule: Habit['schedule']
   startDate: DateStr
   endDate: DateStr | null
@@ -139,6 +142,8 @@ export class Store {
       type: input.type,
       targetPerDay: input.type === 'count' ? input.targetPerDay : 1,
       unit: input.unit,
+      note: input.note,
+      reminders: normalizeTimes(input.reminders),
       schedule: input.schedule,
       startDate: input.startDate,
       endDate: input.endDate,
@@ -160,6 +165,8 @@ export class Store {
     if (patch.color !== undefined) habit.color = patch.color
     if (patch.icon !== undefined) habit.icon = patch.icon
     if (patch.unit !== undefined) habit.unit = patch.unit
+    if (patch.note !== undefined) habit.note = patch.note
+    if (patch.reminders !== undefined) habit.reminders = normalizeTimes(patch.reminders)
     if (patch.archived !== undefined) habit.archived = patch.archived
     if (patch.sortOrder !== undefined) habit.sortOrder = patch.sortOrder
     if (patch.startDate !== undefined) habit.startDate = patch.startDate
@@ -184,8 +191,17 @@ export class Store {
     if (index < 0) return false
     this.data.habits.splice(index, 1)
     delete this.data.entries[id]
+    delete this.data.reminderFired[id]
     this.scheduleSave()
     return true
+  }
+
+  /** Пометить напоминание показанным, чтобы сегодня оно не повторилось. */
+  markReminderFired(habitId: string, date: DateStr, time: string): void {
+    const current = this.data.reminderFired[habitId]
+    const times = current && current.date === date ? [...current.times, time] : [time]
+    this.data.reminderFired[habitId] = { date, times: normalizeTimes(times) }
+    this.scheduleSave()
   }
 
   /** Установить значение дня. Значение 0 удаляет отметку. */
@@ -267,7 +283,15 @@ export class Store {
     for (const habit of habits) entries[habit.id] = incoming.entries[habit.id] ?? {}
     this.data.habits = habits
     this.data.entries = entries
+    this.pruneReminderFired()
     if (!keepUser) this.data.user = incoming.user
     this.scheduleSave()
+  }
+
+  private pruneReminderFired(): void {
+    const known = new Set(this.data.habits.map((h) => h.id))
+    for (const habitId of Object.keys(this.data.reminderFired)) {
+      if (!known.has(habitId)) delete this.data.reminderFired[habitId]
+    }
   }
 }

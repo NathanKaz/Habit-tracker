@@ -1,14 +1,16 @@
 import { randomUUID } from 'node:crypto'
-import type { AppData, DateStr, Habit, Settings } from './domain/types'
+import type { AppData, DateStr, Habit, ReminderFired, Settings } from './domain/types'
 import { isDateStr, todayStr } from './domain/dates'
+import { MAX_NOTE_LENGTH, normalizeTimes } from './domain/reminders'
 import { DEFAULT_SERVER_PORT } from '../shared/dev'
 
-export const DATA_VERSION = 1
+export const DATA_VERSION = 2
 
 export const DEFAULT_SETTINGS: Settings = {
   streakResetEnabled: true,
   language: 'en',
   trayEnabled: true,
+  remindersEnabled: true,
   remoteAccessEnabled: true,
   serverPort: DEFAULT_SERVER_PORT,
   launchAtLogin: false,
@@ -24,6 +26,7 @@ export function emptyData(): AppData {
     settings: { ...DEFAULT_SETTINGS },
     habits: [],
     entries: {},
+    reminderFired: {},
   }
 }
 
@@ -74,6 +77,8 @@ function parseHabit(raw: unknown, defaultResetStreakOnMiss = true): Habit | null
     type,
     targetPerDay: type === 'count' ? Math.min(9999, Math.max(1, Math.round(asNumber(r.targetPerDay, 1)))) : 1,
     unit: asString(r.unit, '').slice(0, 24),
+    note: asString(r.note, '').slice(0, MAX_NOTE_LENGTH),
+    reminders: normalizeTimes(r.reminders),
     schedule,
     startDate,
     endDate: endDate && endDate > startDate ? endDate : null,
@@ -112,6 +117,7 @@ export function migrate(raw: unknown): AppData {
   const language = rawSettings.language
   settings.language = language === 'ru' || language === 'system' ? language : 'en'
   settings.trayEnabled = asBool(rawSettings.trayEnabled, base.settings.trayEnabled)
+  settings.remindersEnabled = asBool(rawSettings.remindersEnabled, base.settings.remindersEnabled)
   settings.remoteAccessEnabled = asBool(rawSettings.remoteAccessEnabled, base.settings.remoteAccessEnabled)
   settings.launchAtLogin = asBool(rawSettings.launchAtLogin, base.settings.launchAtLogin)
   settings.serverPort = Math.min(65535, Math.max(1024, Math.round(asNumber(rawSettings.serverPort, base.settings.serverPort))))
@@ -154,5 +160,15 @@ export function migrate(raw: unknown): AppData {
     if (known.has(habitId)) entries[habitId] = days
   }
 
-  return { version: DATA_VERSION, user, sessions, settings, habits, entries }
+  const reminderFired: Record<string, ReminderFired> = {}
+  const rawFired = typeof r.reminderFired === 'object' && r.reminderFired !== null ? (r.reminderFired as Record<string, unknown>) : {}
+  for (const habitId of known) {
+    const item = rawFired[habitId]
+    if (typeof item !== 'object' || item === null) continue
+    const state = item as Record<string, unknown>
+    if (!isDateStr(state.date)) continue
+    reminderFired[habitId] = { date: state.date, times: normalizeTimes(state.times) }
+  }
+
+  return { version: DATA_VERSION, user, sessions, settings, habits, entries, reminderFired }
 }

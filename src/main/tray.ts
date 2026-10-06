@@ -73,6 +73,11 @@ export class AppTray {
     this.tray?.setToolTip(`${t(this.options.getLanguage(), 'app.name')}\n${text}`)
   }
 
+  notify(title: string, content: string): void {
+    if (!this.tray) return
+    this.tray.displayBalloon?.({ title, content })
+  }
+
   destroy(): void {
     this.tray?.destroy()
     this.tray = null

@@ -184,6 +184,12 @@ export function SettingsView(): ReactNode {
             checked={settings.launchAtLogin}
             onChange={(value) => void updateSettings({ launchAtLogin: value })}
           />
+          <Switch
+            label={t('settings.remindersEnable')}
+            hint={t('settings.remindersHint')}
+            checked={settings.remindersEnabled}
+            onChange={(value) => void updateSettings({ remindersEnabled: value })}
+          />
 
           <div className="field" style={{ marginTop: 6 }}>
             <label>{t('settings.appearance')}</label>

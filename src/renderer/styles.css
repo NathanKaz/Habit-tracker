@@ -302,6 +302,29 @@ h3 {
   border-color: var(--accent);
 }
 
+textarea.input {
+  min-height: 74px;
+  resize: vertical;
+  font: inherit;
+  line-height: 1.45;
+}
+
+.reminder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reminder-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reminder-row .input {
+  max-width: 170px;
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -398,6 +421,23 @@ h3 {
   font-size: 12px;
   color: var(--text-faint);
   overflow-wrap: anywhere;
+}
+
+.habit-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+.habit-reminders {
+  white-space: nowrap;
 }
 
 .habit-card-actions {

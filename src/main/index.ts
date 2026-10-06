@@ -7,6 +7,7 @@ import { resolveLanguage, t, type Language } from '../i18n'
 import { lanUrls } from './net'
 import { DEFAULT_SERVER_PORT, devApiPort, VITE_DEV_URL } from '../shared/dev'
 import { AppServer } from './server'
+import { ReminderScheduler } from './reminders'
 import { Store } from './store'
 import { AppTray } from './tray'
 import { createMainWindow, resolveIconPath, resolveTrayIconPath } from './window'
@@ -19,6 +20,10 @@ const log = (message: string): void => console.log(`[app] ${message}`)
 
 if (process.platform === 'linux') {
   app.commandLine.appendSwitch('disable-gpu-sandbox')
+}
+
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.habittracker.app')
 }
 
 const USER_DATA_DIR_NAME = 'Habit Tracker'
@@ -58,6 +63,7 @@ const desktopToken = randomBytes(32).toString('hex')
 let store: Store | null = null
 let server: AppServer | null = null
 let tray: AppTray | null = null
+let reminders: ReminderScheduler | null = null
 let mainWindow: BrowserWindow | null = null
 let quitting = false
 
@@ -179,12 +185,22 @@ async function bootstrap(): Promise<void> {
   syncTray()
   applyAutoLaunch(store.settings)
 
+  reminders = new ReminderScheduler({
+    store,
+    getLanguage: currentLanguage,
+    onOpenWindow: showMainWindow,
+    onBalloon: (title, content) => tray?.notify(title, content),
+    log,
+  })
+  reminders.start()
+
   const startedHidden = process.argv.includes('--hidden') && app.getLoginItemSettings().wasOpenedAtLogin
   if (!startedHidden) showMainWindow()
 }
 
 function quit(): void {
   quitting = true
+  reminders?.stop()
   void (async () => {
     try {
       await server?.close()

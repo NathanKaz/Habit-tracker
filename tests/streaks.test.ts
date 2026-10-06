@@ -13,6 +13,8 @@ function habit(overrides: Partial<Habit> = {}): Habit {
     type: 'boolean',
     targetPerDay: 1,
     unit: '',
+    note: '',
+    reminders: [],
     schedule: { mode: 'daily' },
     startDate: '2026-10-01',
     endDate: null,

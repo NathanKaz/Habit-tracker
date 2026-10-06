@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { isDateStr } from '../domain/dates'
+import { MAX_NOTE_LENGTH, MAX_REMINDERS, TIME_RE } from '../domain/reminders'
 
 const dateStr = z
   .string()
@@ -39,6 +40,8 @@ export const scheduleSchema = z.discriminatedUnion('mode', [
   }),
 ])
 
+export const timeStr = z.string().trim().regex(TIME_RE, 'Time must be in HH:MM format')
+
 export const habitInputSchema = z.object({
   name: z.string().trim().min(1, 'Enter a name').max(80, 'Name is too long'),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Color must be in #rrggbb format'),
@@ -46,6 +49,8 @@ export const habitInputSchema = z.object({
   type: z.enum(['boolean', 'count']),
   targetPerDay: z.number().int().min(1, 'At least 1').max(9999, 'Too many'),
   unit: z.string().max(24).default(''),
+  note: z.string().trim().max(MAX_NOTE_LENGTH, 'Comment is too long').default(''),
+  reminders: z.array(timeStr).max(MAX_REMINDERS, `At most ${MAX_REMINDERS} reminders`).default([]),
   schedule: scheduleSchema,
   startDate: dateStr,
   endDate: dateStr.nullable().default(null),
@@ -59,6 +64,8 @@ export const habitPatchSchema = z.object({
   type: habitInputSchema.shape.type.optional(),
   targetPerDay: habitInputSchema.shape.targetPerDay.optional(),
   unit: habitInputSchema.shape.unit.optional(),
+  note: habitInputSchema.shape.note.optional(),
+  reminders: habitInputSchema.shape.reminders.optional(),
   schedule: scheduleSchema.optional(),
   startDate: dateStr.optional(),
   endDate: dateStr.nullable().optional(),
@@ -78,6 +85,7 @@ export const entryDeltaSchema = z.object({
 export const settingsSchema = z.object({
   language: z.enum(['en', 'ru', 'system']).optional(),
   trayEnabled: z.boolean().optional(),
+  remindersEnabled: z.boolean().optional(),
   remoteAccessEnabled: z.boolean().optional(),
   launchAtLogin: z.boolean().optional(),
   serverPort: z.number().int().min(1024, 'Port must be at least 1024').max(65535, 'Port must be at most 65535').optional(),

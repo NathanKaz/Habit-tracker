@@ -26,6 +26,8 @@ export function HabitCard({ habit, stats, date, value, interactive = true, onEdi
   const monthRatio = stats && stats.monthPlanned > 0 ? Math.min(1, stats.monthDone / stats.monthPlanned) : 0
 
   const unitLabel = habit.unit.trim()
+  const note = habit.note.trim()
+  const reminderTimes = habit.reminders.join(', ')
 
   return (
     <div className={cardClass} style={{ '--habit-color': habit.color } as React.CSSProperties}>
@@ -51,6 +53,9 @@ export function HabitCard({ habit, stats, date, value, interactive = true, onEdi
           ⋯
         </button>
       </div>
+
+      {note ? <p className="habit-note">{note}</p> : null}
+      {reminderTimes ? <div className="hint habit-reminders">{t('habit.reminderAt', { times: reminderTimes })}</div> : null}
 
       <div className="habit-card-actions">
         {habit.type === 'boolean' ? (

@@ -4,7 +4,8 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { AppServer, type AppServerOptions } from '../src/main/server'
 import { Store } from '../src/main/store'
-import type { AppState } from '../src/main/domain/types'
+import type { AppState, Habit } from '../src/main/domain/types'
+import { addDays, todayStr } from '../src/main/domain/dates'
 
 interface Harness {
   server: AppServer
@@ -140,11 +141,12 @@ describe('привычки и отметки', () => {
 
   it('создаёт привычку, отмечает и считает серию', async () => {
     const token = await authed()
-    const created = await call('POST', '/api/habits', input, token)
+    const yesterday = addDays(todayStr(), -1)
+    const created = await call('POST', '/api/habits', { ...input, startDate: yesterday }, token)
     expect(created.status).toBe(201)
     const id = (created.data as { id: string }).id
 
-    for (const date of ['2026-10-01', '2026-10-02']) {
+    for (const date of [yesterday, todayStr()]) {
       expect((await call('POST', `/api/entries/${id}/${date}/toggle`, undefined, token)).status).toBe(200)
     }
 
@@ -188,6 +190,36 @@ describe('привычки и отметки', () => {
       token,
     )
     expect((created.data as { endDate: string | null }).endDate).toBeNull()
+  })
+
+  it('сохраняет комментарий и напоминания, нормализуя их', async () => {
+    const token = await authed()
+    const created = await call(
+      'POST',
+      '/api/habits',
+      { ...input, note: '  два стакана утром  ', reminders: ['18:00', '09:00', '09:00'] },
+      token,
+    )
+    expect(created.status).toBe(201)
+    const id = (created.data as { id: string }).id
+
+    const state = (await call('GET', '/api/state', undefined, token)).data as AppState
+    const habit = state.habits.find((h) => h.id === id)
+    expect(habit?.note).toBe('два стакана утром')
+    expect(habit?.reminders).toEqual(['09:00', '18:00'])
+
+    const patched = await call('PATCH', `/api/habits/${id}`, { note: 'заменили', reminders: ['07:15'] }, token)
+    expect(patched.status).toBe(200)
+    expect((patched.data as Habit).note).toBe('заменили')
+    expect((patched.data as Habit).reminders).toEqual(['07:15'])
+  })
+
+  it('отклоняет неверное время напоминания и лишние', async () => {
+    const token = await authed()
+    expect((await call('POST', '/api/habits', { ...input, reminders: ['25:00'] }, token)).status).toBe(400)
+    expect((await call('POST', '/api/habits', { ...input, reminders: ['7:5'] }, token)).status).toBe(400)
+    const many = Array.from({ length: 9 }, (_, i) => `0${9}:${String(i).padStart(2, '0')}`)
+    expect((await call('POST', '/api/habits', { ...input, reminders: many }, token)).status).toBe(400)
   })
 })
 

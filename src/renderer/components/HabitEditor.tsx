@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import type { Habit, Schedule } from '../../main/domain/types'
 import { HABIT_COLORS } from '../../main/domain/types'
+import { MAX_NOTE_LENGTH, MAX_REMINDERS, TIME_RE } from '../../main/domain/reminders'
 import { eachDay, isDateStr, todayStr } from '../../main/domain/dates'
 import { dateForScheduledCount, isScheduleDay } from '../../main/domain/schedule'
 import { WEEKDAYS_MON_FIRST } from '../../i18n'
@@ -27,6 +28,8 @@ function emptyDraft(): HabitDraft {
     type: 'boolean',
     targetPerDay: 1,
     unit: '',
+    note: '',
+    reminders: [],
     schedule: { mode: 'daily' },
     startDate: todayStr(),
     endDate: null,
@@ -42,6 +45,8 @@ function fromHabit(habit: Habit): HabitDraft {
     type: habit.type,
     targetPerDay: habit.targetPerDay,
     unit: habit.unit,
+    note: habit.note ?? '',
+    reminders: [...habit.reminders],
     schedule: { ...habit.schedule } as Schedule,
     startDate: habit.startDate,
     endDate: habit.endDate,
@@ -52,6 +57,15 @@ function fromHabit(habit: Habit): HabitDraft {
 function scheduledCount(schedule: Schedule, start: string, end: string | null): number {
   if (!end || end < start) return 0
   return eachDay(start, end).filter((date) => isScheduleDay(schedule, date)).length
+}
+
+/** Ближайшие полчаса: значение, которое не придётся править вручную. */
+function suggestTime(): string {
+  const now = new Date()
+  const rounded = (now.getHours() * 60 + Math.ceil(now.getMinutes() / 30) * 30) % (24 * 60)
+  const hours = String(Math.floor(rounded / 60)).padStart(2, '0')
+  const minutes = String(rounded % 60).padStart(2, '0')
+  return `${hours}:${minutes}`
 }
 
 export function HabitEditor({ habit, onClose }: HabitEditorProps): ReactNode {
@@ -106,6 +120,19 @@ export function HabitEditor({ habit, onClose }: HabitEditorProps): ReactNode {
     setSchedule({ mode: 'weekdays', days: days.sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b)) })
   }
 
+  function setReminder(index: number, value: string): void {
+    patch({ reminders: draft.reminders.map((time, i) => (i === index ? value : time)) })
+  }
+
+  function addReminder(): void {
+    if (draft.reminders.length >= MAX_REMINDERS) return
+    patch({ reminders: [...draft.reminders, suggestTime()] })
+  }
+
+  function removeReminder(index: number): void {
+    patch({ reminders: draft.reminders.filter((_, i) => i !== index) })
+  }
+
   function validate(): string {
     if (draft.name.trim().length === 0) return t('editor.err.name')
     if (!isDateStr(draft.startDate)) return t('editor.err.start')
@@ -113,6 +140,7 @@ export function HabitEditor({ habit, onClose }: HabitEditorProps): ReactNode {
     if (draft.type === 'count' && draft.targetPerDay < 1) return t('editor.err.goalMin')
     if (draft.schedule.mode === 'weekdays' && draft.schedule.days.length === 0) return t('editor.err.pickDay')
     if (draft.schedule.mode === 'timesPerWeek' && draft.schedule.timesPerWeek < 1) return t('editor.err.timesPerWeek')
+    if (draft.reminders.some((time) => !TIME_RE.test(time))) return t('editor.err.reminderTime')
     return ''
   }
 
@@ -127,6 +155,8 @@ export function HabitEditor({ habit, onClose }: HabitEditorProps): ReactNode {
       const payload: HabitDraft = {
         ...draft,
         name: draft.name.trim(),
+        note: draft.note.trim(),
+        reminders: draft.reminders.filter((time) => time !== ''),
         endDate: endMode === 'never' ? null : draft.endDate || null,
       }
       if (habit) await updateHabit(habit.id, payload)
@@ -194,6 +224,19 @@ export function HabitEditor({ habit, onClose }: HabitEditorProps): ReactNode {
             maxLength={80}
             placeholder={t('editor.namePlaceholder')}
             onChange={(event) => patch({ name: event.target.value })}
+          />
+        </div>
+
+        <div className="field span-2">
+          <label htmlFor="habit-note">{t('editor.note')}</label>
+          <textarea
+            id="habit-note"
+            className="input"
+            rows={3}
+            maxLength={MAX_NOTE_LENGTH}
+            placeholder={t('editor.notePlaceholder')}
+            value={draft.note}
+            onChange={(event) => patch({ note: event.target.value })}
           />
         </div>
 
@@ -342,6 +385,41 @@ export function HabitEditor({ habit, onClose }: HabitEditorProps): ReactNode {
             <span className="hint">{t('editor.timesHint')}</span>
           </div>
         ) : null}
+
+        <div className="field span-2">
+          <label>{t('editor.reminders')}</label>
+          <div className="reminder-list">
+            {draft.reminders.map((time, index) => (
+              <div className="reminder-row" key={index}>
+                <input
+                  className="input"
+                  type="time"
+                  value={time}
+                  aria-label={t('editor.reminderTimeAria')}
+                  onChange={(event) => setReminder(index, event.target.value)}
+                />
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  aria-label={t('editor.reminderRemove')}
+                  onClick={() => removeReminder(index)}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+          {draft.reminders.length < MAX_REMINDERS ? (
+            <button type="button" className="btn btn-ghost" onClick={addReminder}>
+              {`+ ${t('editor.reminderAdd')}`}
+            </button>
+          ) : null}
+          <span className="hint">
+            {draft.reminders.length >= MAX_REMINDERS
+              ? t('editor.reminderMax', { max: MAX_REMINDERS })
+              : t('editor.remindersHint')}
+          </span>
+        </div>
 
         <div className="field span-2">
           <label>{t('editor.resetStreak')}</label>
