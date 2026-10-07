@@ -172,6 +172,13 @@ const en = {
   'settings.remindersEnable': 'Remind about habits that are not done',
   'settings.remindersHint':
     'Notifications appear while the app is running. Turn on launch at login and minimize to tray, otherwise they stop with the app.',
+  'settings.notifications': 'Browser notifications',
+  'settings.notificationsHint':
+    'Allow this device to show system notifications when a reminder is due. The app must stay open.',
+  'settings.notificationsEnable': 'Enable notifications',
+  'settings.notificationsOn': 'Notifications are allowed',
+  'settings.notificationsDenied': 'Notifications are blocked in your browser settings',
+  'settings.notificationsUnsupported': 'Notifications are not supported on this device',
   'settings.launch': 'Launch at login',
   'settings.launchHint': 'The app starts minimized to the tray.',
   'settings.appearance': 'Appearance',
@@ -209,6 +216,14 @@ const en = {
   'settings.importHint': 'Import replaces current habits and all history. Export before replacing.',
   'settings.session': 'Session',
   'settings.logout': 'Sign out',
+  'settings.devices': 'Devices',
+  'settings.devicesHint': 'Active sign-ins with your password. Ending one signs that device out.',
+  'settings.deviceUnknown': 'Unknown device',
+  'settings.deviceLastUsed': 'Last activity {date}',
+  'settings.deviceRevoke': 'End sign-in',
+  'settings.thisDevice': 'This device',
+  'settings.devicesEmpty': 'No active sign-ins',
+  'settings.toast.deviceEnded': 'Sign-in ended',
   'settings.toast.portRange': 'Port must be between 1024 and 65535',
   'settings.toast.portChanged': 'Port changed to {port}',
   'settings.toast.usernameShort': 'Username must be at least 2 characters',
@@ -247,6 +262,7 @@ const en = {
 
   'reminder.body': 'Time to complete "{name}"',
   'reminder.bodyWithNote': 'Time to complete "{name}": {note}',
+  'reminder.open': 'Open',
 
   'tray.open': 'Open',
   'tray.remoteOn': 'Access from other devices',
@@ -424,6 +440,13 @@ const ru: Record<TranslationKey, string> = {
   'settings.remindersEnable': 'Напоминать о невыполненных привычках',
   'settings.remindersHint':
     'Уведомления приходят, пока приложение запущено. Включите автозапуск и сворачивание в трей, иначе они прекратятся вместе с приложением.',
+  'settings.notifications': 'Уведомления в браузере',
+  'settings.notificationsHint':
+    'Разрешите этому устройству показывать системные уведомления, когда пора выполнить привычку. Приложение должно быть открыто.',
+  'settings.notificationsEnable': 'Включить уведомления',
+  'settings.notificationsOn': 'Уведомления разрешены',
+  'settings.notificationsDenied': 'Уведомления заблокированы в настройках браузера',
+  'settings.notificationsUnsupported': 'Уведомления не поддерживаются на этом устройстве',
   'settings.launch': 'Запускать при входе в систему',
   'settings.launchHint': 'Приложение стартует свёрнутым в трей.',
   'settings.appearance': 'Оформление',
@@ -460,6 +483,14 @@ const ru: Record<TranslationKey, string> = {
   'settings.importHint': 'Загрузка заменяет текущие привычки и всю историю. Сделайте выгрузку перед заменой.',
   'settings.session': 'Сеанс',
   'settings.logout': 'Выйти',
+  'settings.devices': 'Устройства',
+  'settings.devicesHint': 'Активные входы по паролю. Завершение входа разрывает сеанс на этом устройстве.',
+  'settings.deviceUnknown': 'Неизвестное устройство',
+  'settings.deviceLastUsed': 'Последняя активность {date}',
+  'settings.deviceRevoke': 'Завершить вход',
+  'settings.thisDevice': 'Это устройство',
+  'settings.devicesEmpty': 'Активных входов нет',
+  'settings.toast.deviceEnded': 'Вход завершён',
   'settings.toast.portRange': 'Порт должен быть от 1024 до 65535',
   'settings.toast.portChanged': 'Порт изменён на {port}',
   'settings.toast.usernameShort': 'Имя не короче 2 символов',
@@ -498,6 +529,7 @@ const ru: Record<TranslationKey, string> = {
 
   'reminder.body': 'Пора выполнить «{name}»',
   'reminder.bodyWithNote': 'Пора выполнить «{name}»: {note}',
+  'reminder.open': 'Открыть',
 
   'tray.open': 'Открыть',
   'tray.remoteOn': 'Доступ с других устройств',

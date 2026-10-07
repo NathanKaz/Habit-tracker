@@ -27,6 +27,12 @@ export interface Toast {
   id: number
   text: string
   tone: 'error' | 'info'
+  action?: ToastAction
+}
+
+export interface ToastAction {
+  label: string
+  run: () => void
 }
 
 type TokenState = { status: 'pending' } | { status: 'none' } | { status: 'ready'; token: string }
@@ -39,7 +45,7 @@ interface AppContextValue {
   isDesktop: boolean
   offlineMessage: string
   retry: () => void
-  notify: (text: string, tone?: Toast['tone']) => void
+  notify: (text: string, tone?: Toast['tone'], action?: ToastAction) => void
   dismissToast: (id: number) => void
   setup: (username: string, password: string) => Promise<void>
   login: (username: string, password: string) => Promise<void>
@@ -84,12 +90,62 @@ export function AppProvider({ children }: { children: ReactNode }): ReactNode {
   }, [])
 
   const notify = useCallback(
-    (text: string, tone: Toast['tone'] = 'error') => {
+    (text: string, tone: Toast['tone'] = 'error', action?: ToastAction) => {
       const id = toastId.current++
-      setToasts((current) => [...current, { id, text, tone }].slice(-MAX_TOASTS))
-      setTimeout(() => dismissToast(id), tone === 'error' ? 6000 : 3000)
+      setToasts((current) =>
+        [...current, { id, text, tone, ...(action ? { action } : {}) }].slice(-MAX_TOASTS),
+      )
+      setTimeout(() => dismissToast(id), tone === 'error' ? 6000 : action ? 8000 : 3000)
     },
     [dismissToast],
+  )
+
+  // Системное уведомление в окне приложения уже показывает главный процесс,
+  // здесь нужен тост с кнопкой «Открыть» и уведомление для браузерных клиентов.
+  const handleReminderDue = useCallback(
+    (payload: { type?: string; habitId?: unknown; date?: unknown; time?: unknown }) => {
+      const habitId = typeof payload.habitId === 'string' ? payload.habitId : ''
+      const date = typeof payload.date === 'string' ? payload.date : ''
+      const time = typeof payload.time === 'string' ? payload.time : ''
+      if (!habitId || !date || !time) return
+
+      const key = `habit-tracker:reminder:${habitId}:${date}:${time}`
+      try {
+        if (window.localStorage.getItem(key)) return
+        window.localStorage.setItem(key, '1')
+      } catch {
+        /* приватный режим браузера — дедупликация не работает, показываем */
+      }
+
+      const habit = stateRef.current?.habits.find((item) => item.id === habitId)
+      if (!habit) return
+      const lang = resolveLanguage(
+        stateRef.current?.settings.language,
+        typeof navigator === 'undefined' ? undefined : navigator.language,
+      )
+      const note = habit.note.trim()
+      const body = note
+        ? t(lang, 'reminder.bodyWithNote', { name: habit.name, note })
+        : t(lang, 'reminder.body', { name: habit.name })
+
+      if (
+        !window.habitDesktop &&
+        typeof window.Notification !== 'undefined' &&
+        window.Notification.permission === 'granted'
+      ) {
+        try {
+          new window.Notification(`${habit.icon} ${t(lang, 'app.name')}`, { body, tag: key })
+        } catch {
+          /* тост покажем в любом случае */
+        }
+      }
+
+      notify(body, 'info', {
+        label: t(lang, 'reminder.open'),
+        run: () => window.dispatchEvent(new CustomEvent('habit:navigate', { detail: 'today' })),
+      })
+    },
+    [notify],
   )
 
   /** Перезагрузка состояния с защитой от «дождя» запросов. */
@@ -167,6 +223,7 @@ export function AppProvider({ children }: { children: ReactNode }): ReactNode {
         try {
           const payload = JSON.parse(String(event.data)) as { type?: string }
           if (payload.type === 'state:changed') void refresh()
+          if (payload.type === 'reminder:due') handleReminderDue(payload)
         } catch {
           /* некорректное сообщение игнорируем */
         }
@@ -198,7 +255,7 @@ export function AppProvider({ children }: { children: ReactNode }): ReactNode {
         socket.close()
       }
     }
-  }, [refresh, tokenState])
+  }, [refresh, tokenState, handleReminderDue])
 
   // Переход в «готов» после первых успешных данных.
   useEffect(() => {

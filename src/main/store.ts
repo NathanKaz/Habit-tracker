@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import path from 'node:path'
-import type { AppData, DateStr, Habit, Settings } from './domain/types'
+import type { AppData, DateStr, Habit, Session, Settings } from './domain/types'
 import { normalizeTimes } from './domain/reminders'
 import { emptyData, migrate, newHabitId } from './model'
 
@@ -47,6 +48,7 @@ export class Store {
     const file = path.join(dir, 'data.json')
     const store = new Store(file, emptyData())
     store.data = await store.readFromDisk()
+    store.scheduleSave()
     return store
   }
 
@@ -240,10 +242,16 @@ export class Store {
     this.scheduleSave()
   }
 
-  addSession(tokenHash: string): void {
+  addSession(tokenHash: string, userAgent = ''): void {
     const now = new Date().toISOString()
     this.data.sessions = this.data.sessions.filter((s) => s.tokenHash !== tokenHash)
-    this.data.sessions.push({ tokenHash, createdAt: now, lastUsedAt: now })
+    this.data.sessions.push({
+      id: randomUUID(),
+      tokenHash,
+      userAgent: userAgent.slice(0, 160),
+      createdAt: now,
+      lastUsedAt: now,
+    })
     this.pruneSessions()
     this.scheduleSave()
   }
@@ -252,6 +260,18 @@ export class Store {
     const before = this.data.sessions.length
     this.data.sessions = this.data.sessions.filter((s) => s.tokenHash !== tokenHash)
     if (this.data.sessions.length !== before) this.scheduleSave()
+  }
+
+  listSessions(): Session[] {
+    return this.data.sessions.map((session) => ({ ...session }))
+  }
+
+  removeSessionById(id: string): boolean {
+    const before = this.data.sessions.length
+    this.data.sessions = this.data.sessions.filter((s) => s.id !== id)
+    if (this.data.sessions.length === before) return false
+    this.scheduleSave()
+    return true
   }
 
   touchSession(tokenHash: string): void {

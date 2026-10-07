@@ -2,7 +2,36 @@ import { useEffect, useState, type ReactNode } from 'react'
 import QRCode from 'qrcode'
 import { useApp } from '../state/app'
 import { useI18n } from '../i18n'
-import { api, downloadExport, setStoredToken } from '../api/client'
+import { formatDate } from '../../i18n'
+import { api, downloadExport, setStoredToken, type SessionInfo } from '../api/client'
+
+function deviceName(userAgent: string): string {
+  const ua = userAgent.trim()
+  if (!ua) return ''
+  const browser = /Firefox\//.test(ua)
+    ? 'Firefox'
+    : /Edg\//.test(ua)
+      ? 'Edge'
+      : /OPR\//.test(ua)
+        ? 'Opera'
+        : /Chrome\//.test(ua)
+          ? 'Chrome'
+          : /Safari\//.test(ua)
+            ? 'Safari'
+            : ''
+  const os = /Android/.test(ua)
+    ? 'Android'
+    : /iPhone|iPad|iPod/.test(ua)
+      ? 'iOS'
+      : /Windows/.test(ua)
+        ? 'Windows'
+        : /Mac OS X/.test(ua)
+          ? 'macOS'
+          : /Linux/.test(ua)
+            ? 'Linux'
+            : ''
+  return [browser, os].filter(Boolean).join(' · ')
+}
 
 interface QrProps {
   value: string
@@ -74,11 +103,28 @@ function Switch({
 
 export function SettingsView(): ReactNode {
   const { state, updateSettings, updateHabit, logout, importData, notify, isDesktop } = useApp()
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const [portInput, setPortInput] = useState('')
   const [currentPassword, setCurrentPassword] = useState('')
   const [newUsername, setNewUsername] = useState('')
   const [busy, setBusy] = useState(false)
+  const [notifState, setNotifState] = useState<NotificationPermission | 'unsupported'>(() =>
+    typeof Notification === 'undefined' ? 'unsupported' : Notification.permission,
+  )
+  const [sessions, setSessions] = useState<SessionInfo[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    void api
+      .listSessions()
+      .then((result) => {
+        if (!cancelled) setSessions(result.sessions)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   if (!state) return null
   const settings = state.settings
@@ -138,6 +184,25 @@ export function SettingsView(): ReactNode {
     }
   }
 
+  async function askNotifications(): Promise<void> {
+    if (typeof Notification === 'undefined') return
+    setNotifState(await Notification.requestPermission())
+  }
+
+  async function revokeSession(id: string): Promise<void> {
+    try {
+      await api.endSession(id)
+      setSessions((current) => current.filter((item) => item.id !== id))
+      notify(t('settings.toast.deviceEnded'), 'info')
+    } catch (err) {
+      notify(err instanceof Error ? err.message : t('error.generic'))
+    }
+  }
+
+  function shortDate(iso: string): string {
+    return /^\d{4}-\d{2}-\d{2}/.test(iso) ? formatDate(lang, iso.slice(0, 10), false) : '—'
+  }
+
   return (
     <div className="view">
       <div className="view-inner">
@@ -190,6 +255,26 @@ export function SettingsView(): ReactNode {
             checked={settings.remindersEnabled}
             onChange={(value) => void updateSettings({ remindersEnabled: value })}
           />
+
+          <div className="switch-row">
+            <div className="switch-text">
+              <span>{t('settings.notifications')}</span>
+              <span className="hint">
+                {notifState === 'unsupported'
+                  ? t('settings.notificationsUnsupported')
+                  : notifState === 'granted'
+                    ? t('settings.notificationsOn')
+                    : notifState === 'denied'
+                      ? t('settings.notificationsDenied')
+                      : t('settings.notificationsHint')}
+              </span>
+            </div>
+            {notifState === 'default' ? (
+              <button type="button" className="btn" onClick={() => void askNotifications()}>
+                {t('settings.notificationsEnable')}
+              </button>
+            ) : null}
+          </div>
 
           <div className="field" style={{ marginTop: 6 }}>
             <label>{t('settings.appearance')}</label>
@@ -322,6 +407,32 @@ export function SettingsView(): ReactNode {
               {t('settings.update')}
             </button>
           </div>
+        </section>
+
+        <section className="card section">
+          <div className="section-title">{t('settings.devices')}</div>
+          {sessions.length === 0 ? (
+            <div className="hint">{t('settings.devicesEmpty')}</div>
+          ) : (
+            <div className="archive-list">
+              {sessions.map((session) => (
+                <div key={session.id} className="archive-row">
+                  <span className="grow">
+                    <span>{deviceName(session.userAgent) || t('settings.deviceUnknown')}</span>
+                    <span className="hint">{t('settings.deviceLastUsed', { date: shortDate(session.lastUsedAt) })}</span>
+                  </span>
+                  {session.current ? (
+                    <span className="hint">{t('settings.thisDevice')}</span>
+                  ) : (
+                    <button type="button" className="btn btn-ghost" onClick={() => void revokeSession(session.id)}>
+                      {t('settings.deviceRevoke')}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          <span className="hint">{t('settings.devicesHint')}</span>
         </section>
 
         {archived.length > 0 ? (

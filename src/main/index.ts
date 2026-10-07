@@ -190,6 +190,7 @@ async function bootstrap(): Promise<void> {
     getLanguage: currentLanguage,
     onOpenWindow: showMainWindow,
     onBalloon: (title, content) => tray?.notify(title, content),
+    onDue: (message) => server?.broadcastMessage(message),
     log,
   })
   reminders.start()

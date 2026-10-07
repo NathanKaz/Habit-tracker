@@ -60,6 +60,10 @@ function isLoopback(ip: string): boolean {
   return ip === '::1' || ip === '127.0.0.1' || ip.startsWith('127.') || ip.startsWith('::ffff:127.')
 }
 
+function userAgent(req: Request): string {
+  return (req.get('user-agent') ?? '').slice(0, 160)
+}
+
 export function createApiRouter(ctx: RouterContext): Router {
   const { store, throttle } = ctx
   const router = Router()
@@ -71,6 +75,13 @@ export function createApiRouter(ctx: RouterContext): Router {
     const authed = req as AuthedRequest
     if (ctx.desktopToken && safeEqual(token, ctx.desktopToken)) {
       authed.authKind = 'desktop'
+      // Рендерер приложения работает под токеном компьютера; сохранённый вход
+      // присылаем отдельным заголовком, чтобы показать «Это устройство».
+      const sessionToken = (req.get('x-habit-session') ?? '').trim()
+      if (sessionToken) {
+        const sessionHash = hashToken(sessionToken)
+        if (store.raw.sessions.some((s) => s.tokenHash === sessionHash)) authed.tokenHash = sessionHash
+      }
       return next()
     }
     const tokenHash = hashToken(token)
@@ -106,7 +117,7 @@ export function createApiRouter(ctx: RouterContext): Router {
     store.setUser({ username, passwordHash: hash, salt, createdAt: new Date().toISOString() })
 
     const token = newSessionToken()
-    store.addSession(hashToken(token))
+    store.addSession(hashToken(token), userAgent(req))
     res.status(201).json({ token, username })
   })
 
@@ -137,7 +148,7 @@ export function createApiRouter(ctx: RouterContext): Router {
 
     throttle.registerSuccess(ip, username)
     const token = newSessionToken()
-    store.addSession(hashToken(token))
+    store.addSession(hashToken(token), userAgent(req))
     res.json({ token, username: user.username })
   })
 
@@ -161,7 +172,7 @@ export function createApiRouter(ctx: RouterContext): Router {
     // Текущему клиенту выдаём новый токен, иначе он сам был бы отключён.
     store.raw.sessions = []
     const token = newSessionToken()
-    store.addSession(hashToken(token))
+    store.addSession(hashToken(token), userAgent(req))
     ctx.broadcast()
     res.json({ ok: true, token })
   })
@@ -173,6 +184,33 @@ export function createApiRouter(ctx: RouterContext): Router {
     if (!user) return fail(res, 400, 'Account is not configured')
     store.setUser({ ...user, username: normalizeUsername(parsed.data.username) })
     ctx.broadcast()
+    res.json({ ok: true })
+  })
+
+  // --- активные входы --------------------------------------------------------
+
+  router.get('/sessions', requireAuth, (req, res) => {
+    const currentHash = (req as AuthedRequest).tokenHash
+    res.json({
+      sessions: store.listSessions().map((session) => ({
+        id: session.id,
+        userAgent: session.userAgent,
+        createdAt: session.createdAt,
+        lastUsedAt: session.lastUsedAt,
+        current: currentHash !== undefined && session.tokenHash === currentHash,
+      })),
+    })
+  })
+
+  router.delete('/sessions/:id', requireAuth, (req, res) => {
+    const id = req.params.id as string
+    const session = store.raw.sessions.find((item) => item.id === id)
+    if (!session) return fail(res, 404, 'Sign-in not found')
+    const currentHash = (req as AuthedRequest).tokenHash
+    if (currentHash && session.tokenHash === currentHash) {
+      return fail(res, 400, 'Use sign out to end the current session')
+    }
+    store.removeSessionById(id)
     res.json({ ok: true })
   })
 

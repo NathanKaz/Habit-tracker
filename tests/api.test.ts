@@ -119,6 +119,37 @@ describe('учётная запись и сессии', () => {
     expect((await call('GET', '/api/state')).status).toBe(401)
     expect((await call('GET', '/api/state', undefined, 'desktop-token-for-tests')).status).toBe(200)
   })
+
+  it('перечисляет активные входы и отзывает чужой по id', async () => {
+    const setup = await call('POST', '/api/auth/setup', { username: 'anna', password: 'secret12' })
+    const first = (setup.data as { token: string }).token
+    const login = await call('POST', '/api/auth/login', { username: 'anna', password: 'secret12' })
+    const second = (login.data as { token: string }).token
+
+    const list = await call('GET', '/api/sessions', undefined, first)
+    expect(list.status).toBe(200)
+    const sessions = (
+      list.data as { sessions: { id: string; userAgent: string; current: boolean; tokenHash?: string }[] }
+    ).sessions
+    expect(sessions).toHaveLength(2)
+    expect(sessions.every((item) => item.id.length > 0)).toBe(true)
+    expect(sessions.some((item) => item.tokenHash !== undefined)).toBe(false)
+    expect(sessions.filter((item) => item.current)).toHaveLength(1)
+
+    const other = sessions.find((item) => !item.current)
+    expect(other).toBeDefined()
+    const removed = await call('DELETE', `/api/sessions/${other?.id ?? ''}`, undefined, first)
+    expect(removed.status).toBe(200)
+    expect((await call('GET', '/api/state', undefined, second)).status).toBe(401)
+    expect((await call('GET', '/api/state', undefined, first)).status).toBe(200)
+
+    const remaining = (await call('GET', '/api/sessions', undefined, first)).data as {
+      sessions: { id: string; current: boolean }[]
+    }
+    expect(remaining.sessions).toHaveLength(1)
+    expect((await call('DELETE', `/api/sessions/${remaining.sessions[0]?.id ?? ''}`, undefined, first)).status).toBe(400)
+    expect((await call('DELETE', '/api/sessions/no-such-id', undefined, first)).status).toBe(404)
+  })
 })
 
 describe('привычки и отметки', () => {

@@ -3,17 +3,25 @@ import type { Language } from '../i18n'
 import { t } from '../i18n'
 import { dueReminders, minutesOfDay } from './domain/reminders'
 import { todayStr } from './domain/dates'
-import type { Habit } from './domain/types'
+import type { DateStr, Habit } from './domain/types'
 import type { Store } from './store'
 
 const TICK_MS = 30_000
 const NOTE_LIMIT = 120
+
+export interface ReminderDueMessage {
+  type: 'reminder:due'
+  habitId: string
+  date: DateStr
+  time: string
+}
 
 export interface ReminderHost {
   store: Store
   getLanguage: () => Language
   onOpenWindow: () => void
   onBalloon: (title: string, content: string) => void
+  onDue?: (message: ReminderDueMessage) => void
   log: (message: string) => void
 }
 
@@ -51,6 +59,7 @@ export class ReminderScheduler {
       for (const item of due) {
         store.markReminderFired(item.habit.id, today, item.time)
         this.show(item.habit)
+        this.host.onDue?.({ type: 'reminder:due', habitId: item.habit.id, date: today, time: item.time })
       }
     } catch (err) {
       this.host.log(`ошибка проверки напоминаний: ${String(err)}`)

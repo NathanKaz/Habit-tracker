@@ -201,19 +201,23 @@ export class AppServer {
   }
 
   broadcast(reason = 'changed'): void {
-    const payload = JSON.stringify({ type: 'state:changed', reason })
+    this.broadcastMessage({ type: 'state:changed', reason })
+    this.scheduleMidnightBroadcast()
+  }
+
+  broadcastMessage(payload: unknown): void {
+    const text = JSON.stringify(payload)
     for (const ws of this.clients) {
       if (ws.readyState !== WebSocket.OPEN) {
         this.clients.delete(ws)
         continue
       }
       try {
-        ws.send(payload)
+        ws.send(text)
       } catch {
         this.clients.delete(ws)
       }
     }
-    this.scheduleMidnightBroadcast()
   }
 
   /** В полночь «сегодня» меняется — сообщаем клиентам, чтобы пересчитали серии. */

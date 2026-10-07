@@ -1,6 +1,14 @@
-import { describe, expect, it } from 'vitest'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DateStr, Habit, ReminderFired } from '../src/main/domain/types'
 import { dueReminders, nextFired, normalizeTimes, timeToMinutes } from '../src/main/domain/reminders'
+import { todayStr } from '../src/main/domain/dates'
+import { ReminderScheduler, type ReminderDueMessage } from '../src/main/reminders'
+import { Store } from '../src/main/store'
+
+vi.mock('electron', () => ({ Notification: { isSupported: () => false } }))
 
 const TODAY: DateStr = '2026-10-02'
 
@@ -106,5 +114,61 @@ describe('состояние показанных напоминаний', () =>
   it('новый день начинает список заново', () => {
     const fired = nextFired({ h1: { date: '2026-10-01', times: ['09:00'] } }, 'h1', TODAY, '18:00')
     expect(fired.h1).toEqual({ date: TODAY, times: ['18:00'] })
+  })
+})
+
+describe('ReminderScheduler', () => {
+  let store: Store
+  let dir: string
+  let messages: ReminderDueMessage[]
+
+  beforeEach(async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'habit-reminders-'))
+    store = await Store.open(dir)
+    messages = []
+  })
+
+  afterEach(async () => {
+    await store.flush()
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  function makeScheduler(): ReminderScheduler {
+    return new ReminderScheduler({
+      store,
+      getLanguage: () => 'ru',
+      onOpenWindow: () => undefined,
+      onBalloon: () => undefined,
+      onDue: (message) => messages.push(message),
+      log: () => undefined,
+    })
+  }
+
+  it('помечает время сработавшим и рассылает reminder:due один раз', async () => {
+    const today = todayStr()
+    const habit = store.createHabit({
+      name: 'Вода',
+      color: '#22d3ee',
+      icon: '💧',
+      type: 'boolean',
+      targetPerDay: 1,
+      unit: '',
+      note: '',
+      reminders: ['00:00'],
+      schedule: { mode: 'daily' },
+      startDate: today,
+      endDate: null,
+      resetStreakOnMiss: true,
+    })
+    const scheduler = makeScheduler()
+
+    scheduler.start()
+    scheduler.stop()
+    expect(messages).toEqual([{ type: 'reminder:due', habitId: habit.id, date: today, time: '00:00' }])
+    expect(store.raw.reminderFired[habit.id]).toEqual({ date: today, times: ['00:00'] })
+
+    scheduler.start()
+    scheduler.stop()
+    expect(messages).toHaveLength(1)
   })
 })

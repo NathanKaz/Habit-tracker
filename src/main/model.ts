@@ -150,7 +150,15 @@ export function migrate(raw: unknown): AppData {
         const item = s as Record<string, unknown>
         const tokenHash = asString(item.tokenHash, '')
         if (!/^[0-9a-f]{64}$/.test(tokenHash)) return []
-        return [{ tokenHash, createdAt: asString(item.createdAt, ''), lastUsedAt: asString(item.lastUsedAt, '') }]
+        return [
+          {
+            id: asString(item.id, '') || randomUUID(),
+            tokenHash,
+            userAgent: asString(item.userAgent, '').slice(0, 160),
+            createdAt: asString(item.createdAt, ''),
+            lastUsedAt: asString(item.lastUsedAt, ''),
+          },
+        ]
       })
     : []
 

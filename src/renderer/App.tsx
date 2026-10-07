@@ -29,6 +29,16 @@ export function App(): ReactNode {
     document.title = t('app.name')
   }, [lang, t])
 
+  useEffect(() => {
+    const onNavigate = (event: Event): void => {
+      const detail = (event as CustomEvent<unknown>).detail
+      if (detail !== 'today' && detail !== 'calendar' && detail !== 'stats' && detail !== 'settings') return
+      setTab(detail)
+    }
+    window.addEventListener('habit:navigate', onNavigate)
+    return () => window.removeEventListener('habit:navigate', onNavigate)
+  }, [])
+
   if (phase === 'loading') {
     return (
       <div className="loading">

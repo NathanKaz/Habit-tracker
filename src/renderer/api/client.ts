@@ -72,6 +72,8 @@ async function request<T>(path: string, init: RequestInit = {}, asText = false):
   const token = await activeToken()
   const headers = new Headers(init.headers)
   if (token) headers.set('authorization', `Bearer ${token}`)
+  const session = storedToken()
+  if (session && session !== token) headers.set('x-habit-session', session)
   if (init.body !== undefined && !headers.has('content-type')) {
     headers.set('content-type', 'application/json')
   }
@@ -112,6 +114,14 @@ export interface AuthStatus {
   configured: boolean
 }
 
+export interface SessionInfo {
+  id: string
+  userAgent: string
+  createdAt: string
+  lastUsedAt: string
+  current: boolean
+}
+
 export const api = {
   authStatus: () => get<AuthStatus>('/api/auth/status'),
   setup: (username: string, password: string) => post<{ token: string; username: string }>('/api/auth/setup', { username, password }),
@@ -121,6 +131,9 @@ export const api = {
   changePassword: (password: string) => post<{ ok: boolean; token?: string }>('/api/auth/password', { password }),
 
   state: () => get<AppState>('/api/state'),
+
+  listSessions: () => get<{ sessions: SessionInfo[] }>('/api/sessions'),
+  endSession: (id: string) => del<{ ok: boolean }>(`/api/sessions/${encodeURIComponent(id)}`),
 
   createHabit: (draft: HabitDraft) => post<Habit>('/api/habits', draft),
   updateHabit: (id: string, changes: Partial<HabitDraft> & { archived?: boolean; sortOrder?: number }) =>

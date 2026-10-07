@@ -11,6 +11,18 @@ export function Toasts(): ReactNode {
       {toasts.map((toast) => (
         <div key={toast.id} className={`toast ${toast.tone}`}>
           <span className="grow">{toast.text}</span>
+          {toast.action ? (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => {
+                toast.action?.run()
+                dismissToast(toast.id)
+              }}
+            >
+              {toast.action.label}
+            </button>
+          ) : null}
           <button
             type="button"
             className="btn btn-ghost btn-icon"

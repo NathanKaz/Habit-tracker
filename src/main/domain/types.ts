@@ -46,7 +46,9 @@ export interface UserAccount {
 }
 
 export interface Session {
+  id: string
   tokenHash: string
+  userAgent: string
   createdAt: string
   lastUsedAt: string
 }
