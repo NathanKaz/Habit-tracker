@@ -5,15 +5,17 @@ import type { TranslationKey } from '../i18n'
 import { Toasts } from './components/Toasts'
 import { TodayView } from './views/TodayView'
 import { CalendarView } from './views/CalendarView'
+import { StatsView } from './views/StatsView'
 import { SettingsView } from './views/SettingsView'
 import { OnboardingView } from './views/OnboardingView'
 import { LoginView, OfflineView } from './views/LoginView'
 
-type Tab = 'today' | 'calendar' | 'settings'
+type Tab = 'today' | 'calendar' | 'stats' | 'settings'
 
 const TABS: { id: Tab; key: TranslationKey }[] = [
   { id: 'today', key: 'nav.today' },
   { id: 'calendar', key: 'nav.calendar' },
+  { id: 'stats', key: 'nav.stats' },
   { id: 'settings', key: 'nav.settings' },
 ]
 
@@ -95,6 +97,7 @@ export function App(): ReactNode {
 
       {tab === 'today' ? <TodayView /> : null}
       {tab === 'calendar' ? <CalendarView /> : null}
+      {tab === 'stats' ? <StatsView /> : null}
       {tab === 'settings' ? <SettingsView /> : null}
 
       <Toasts />
