@@ -36,10 +36,6 @@ Release date: 2026-10-07 · Previous release: v1.0.3
 - Marks for future dates now return `400` from the API.
 - Statistics "Record" shows the best streak instead of the current one.
 
-### Artifacts
-- Linux: `habit-tracker-1.1.0-x86_64.AppImage`, `habit-tracker-1.1.0-amd64.deb`
-- Windows / macOS builds are produced by the release workflow when the `v1.1.0` tag is pushed.
-
 ---
 
 ## Русский
@@ -73,7 +69,3 @@ Release date: 2026-10-07 · Previous release: v1.0.3
 ### Исправления
 - Отметки на будущие даты API теперь отвечает `400`.
 - «Рекорд» в статистике показывает лучшую серию, а не текущую.
-
-### Артефакты
-- Linux: `habit-tracker-1.1.0-x86_64.AppImage`, `habit-tracker-1.1.0-amd64.deb`
-- Сборки для Windows / macOS создаются релизным workflow при отправке тега `v1.1.0`.

@@ -31,6 +31,15 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Check version matches tag
+        shell: bash
+        run: |
+          pkg=$(node -p "require('./package.json').version")
+          if [ "$pkg" != "${GITHUB_REF_NAME#v}" ]; then
+            echo "package.json version ($pkg) does not match tag ($GITHUB_REF_NAME)" >&2
+            exit 1
+          fi
+
       - run: npm ci
 
       - name: Build renderer and main
