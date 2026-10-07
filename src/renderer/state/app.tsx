@@ -59,7 +59,7 @@ interface AppContextValue {
   changeEntry: (habitId: string, date: DateStr, delta: number) => Promise<void>
   toggleEntry: (habitId: string, date: DateStr) => Promise<void>
   updateSettings: (changes: Partial<Settings>) => Promise<void>
-  importData: (payload: unknown) => Promise<void>
+  importData: (payload: unknown, restoreSettings: boolean) => Promise<void>
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
@@ -338,7 +338,36 @@ export function AppProvider({ children }: { children: ReactNode }): ReactNode {
     [run],
   )
 
-  const deleteHabit = useCallback(async (id: string) => run(() => api.deleteHabit(id)), [run])
+  const deleteHabit = useCallback(
+    async (id: string) => {
+      let removed = false
+      try {
+        await api.deleteHabit(id)
+        removed = true
+      } catch (err) {
+        notify(describeError(err, lang))
+      } finally {
+        void refresh()
+      }
+      if (!removed) return
+      notify(t(lang, 'toast.deleted'), 'info', {
+        label: t(lang, 'action.undo'),
+        run: () => {
+          void (async () => {
+            try {
+              await api.restoreHabit(id)
+              notify(t(lang, 'toast.restored'), 'info')
+            } catch (err) {
+              notify(describeError(err, lang))
+            } finally {
+              void refresh()
+            }
+          })()
+        },
+      })
+    },
+    [notify, refresh, lang],
+  )
 
   const reorderHabits = useCallback(
     async (orderedIds: string[]) => {
@@ -399,8 +428,8 @@ export function AppProvider({ children }: { children: ReactNode }): ReactNode {
   )
 
   const importData = useCallback(
-    async (payload: unknown) => {
-      await run(() => api.importData(payload))
+    async (payload: unknown, restoreSettings: boolean) => {
+      await run(() => api.importData(payload, restoreSettings))
       notify(t(lang, 'toast.imported'), 'info')
     },
     [notify, run, lang],

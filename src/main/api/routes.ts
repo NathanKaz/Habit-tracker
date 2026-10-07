@@ -254,6 +254,13 @@ export function createApiRouter(ctx: RouterContext): Router {
     res.json({ ok: true })
   })
 
+  router.post('/habits/:id/restore', requireAuth, (req, res) => {
+    const habit = store.restoreHabit(req.params.id as string)
+    if (!habit) return fail(res, 404, 'Nothing to restore')
+    ctx.broadcast()
+    res.json(habit)
+  })
+
   // --- отметки выполнения ----------------------------------------------------
 
   function badDate(res: Response): void {
@@ -336,7 +343,7 @@ export function createApiRouter(ctx: RouterContext): Router {
     const parsed = importSchema.safeParse(req.body)
     if (!parsed.success) return fail(res, 400, 'File is corrupted or has an invalid format')
     try {
-      store.importJson(JSON.stringify(req.body), true)
+      store.importJson(JSON.stringify(req.body), true, parsed.data.restoreSettings ?? false)
     } catch {
       return fail(res, 400, 'File is corrupted or has an invalid format')
     }

@@ -91,12 +91,15 @@ export const settingsSchema = z.object({
   serverPort: z.number().int().min(1024, 'Port must be at least 1024').max(65535, 'Port must be at most 65535').optional(),
   theme: z.enum(['system', 'light', 'dark']).optional(),
   weekStartsOn: z.union([z.literal(0), z.literal(1)]).optional(),
+  autoBackupEnabled: z.boolean().optional(),
 })
 
 export const importSchema = z.object({
   version: z.number().optional(),
   habits: z.array(z.unknown()).max(500, 'Too many habits'),
   entries: z.record(z.string(), z.unknown()).optional(),
+  /** Применить настройки из файла вместо текущих. */
+  restoreSettings: z.boolean().optional(),
 })
 
 export type HabitInput = z.infer<typeof habitInputSchema>

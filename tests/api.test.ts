@@ -257,6 +257,30 @@ describe('привычки и отметки', () => {
     expect((patched.data as Habit).reminders).toEqual(['07:15'])
   })
 
+  it('удаление сохраняет снимок, restore возвращает привычку с отметками', async () => {
+    const token = await authed()
+    const created = await call('POST', '/api/habits', input, token)
+    const id = (created.data as { id: string }).id
+    const yesterday = addDays(todayStr(), -1)
+    await call('POST', `/api/entries/${id}/${yesterday}/toggle`, undefined, token)
+
+    expect((await call('DELETE', `/api/habits/${id}`, undefined, token)).status).toBe(200)
+    const afterDelete = (await call('GET', '/api/state', undefined, token)).data as AppState
+    expect(afterDelete.habits).toHaveLength(0)
+
+    const restored = await call('POST', `/api/habits/${id}/restore`, undefined, token)
+    expect(restored.status).toBe(200)
+    expect((restored.data as Habit).id).toBe(id)
+
+    const afterRestore = (await call('GET', '/api/state', undefined, token)).data as AppState
+    expect(afterRestore.habits.map((habit) => habit.id)).toEqual([id])
+    expect(afterRestore.entries[id]?.[yesterday]).toBe(1)
+
+    // Снимок один: повторное восстановление и чужой id не срабатывают.
+    expect((await call('POST', `/api/habits/${id}/restore`, undefined, token)).status).toBe(404)
+    expect((await call('POST', '/api/habits/no-such-id/restore', undefined, token)).status).toBe(404)
+  })
+
   it('отклоняет неверное время напоминания и лишние', async () => {
     const token = await authed()
     expect((await call('POST', '/api/habits', { ...input, reminders: ['25:00'] }, token)).status).toBe(400)
@@ -286,11 +310,12 @@ describe('настройки, экспорт и импорт', () => {
     const response = await call(
       'PATCH',
       '/api/settings',
-      { language: 'ru' },
+      { language: 'ru', autoBackupEnabled: false },
       'desktop-token-for-tests',
     )
     expect(response.status).toBe(200)
     expect((response.data as { language: string }).language).toBe('ru')
+    expect((response.data as { autoBackupEnabled: boolean }).autoBackupEnabled).toBe(false)
     expect(seen).toEqual(['ru'])
   })
 
@@ -323,6 +348,47 @@ describe('настройки, экспорт и импорт', () => {
 
     // Импорт мусора отклоняется.
     expect((await call('POST', '/api/import', { habits: 'nope' }, token)).status).toBe(400)
+  })
+
+  it('импорт применяет настройки из файла только по флагу', async () => {
+    const token = await authed()
+    await call('PATCH', '/api/settings', { language: 'ru' }, 'desktop-token-for-tests')
+    const payload = {
+      habits: [
+        {
+          id: 'h-imported',
+          name: 'Импорт',
+          color: '#4ade80',
+          icon: '✅',
+          type: 'boolean',
+          targetPerDay: 1,
+          unit: '',
+          note: '',
+          reminders: [],
+          schedule: { mode: 'daily' },
+          startDate: '2026-10-01',
+          endDate: null,
+          resetStreakOnMiss: true,
+          archived: false,
+          sortOrder: 0,
+          createdAt: '2026-10-01T00:00:00.000Z',
+        },
+      ],
+      entries: { 'h-imported': { '2026-10-01': 1 } },
+      settings: { language: 'en', theme: 'dark', autoBackupEnabled: false, serverPort: 47999 },
+    }
+
+    expect((await call('POST', '/api/import', { ...payload, restoreSettings: false }, token)).status).toBe(200)
+    const first = (await call('GET', '/api/state', undefined, token)).data as AppState
+    expect(first.habits.map((habit) => habit.id)).toEqual(['h-imported'])
+    expect(first.entries['h-imported']?.['2026-10-01']).toBe(1)
+    expect(first.settings.language).toBe('ru')
+
+    expect((await call('POST', '/api/import', { ...payload, restoreSettings: true }, token)).status).toBe(200)
+    const second = (await call('GET', '/api/state', undefined, token)).data as AppState
+    expect(second.settings.language).toBe('en')
+    expect(second.settings.theme).toBe('dark')
+    expect(second.settings.autoBackupEnabled).toBe(false)
   })
 
   it('не пускает к данным без токена', async () => {

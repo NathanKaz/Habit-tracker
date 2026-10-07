@@ -139,6 +139,7 @@ export const api = {
   updateHabit: (id: string, changes: Partial<HabitDraft> & { archived?: boolean; sortOrder?: number }) =>
     patch<Habit>(`/api/habits/${encodeURIComponent(id)}`, changes),
   deleteHabit: (id: string) => del<{ ok: boolean }>(`/api/habits/${encodeURIComponent(id)}`),
+  restoreHabit: (id: string) => post<Habit>(`/api/habits/${encodeURIComponent(id)}/restore`),
 
   setEntry: (habitId: string, date: DateStr, value: number) =>
     put<{ date: DateStr; value: number }>(`/api/entries/${encodeURIComponent(habitId)}/${date}`, { value }),
@@ -148,7 +149,11 @@ export const api = {
     post<{ date: DateStr; value: number }>(`/api/entries/${encodeURIComponent(habitId)}/${date}/toggle`),
 
   updateSettings: (changes: Partial<Settings>) => patch<Settings>('/api/settings', changes),
-  importData: (payload: unknown) => post<{ ok: boolean }>('/api/import', payload),
+  importData: (payload: unknown, restoreSettings: boolean) =>
+    post<{ ok: boolean }>('/api/import', {
+      ...(typeof payload === 'object' && payload !== null ? payload : {}),
+      restoreSettings,
+    }),
 }
 
 /**

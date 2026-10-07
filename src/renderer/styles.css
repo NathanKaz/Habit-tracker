@@ -831,6 +831,13 @@ textarea.input {
   gap: 16px;
 }
 
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
 .modal-foot {
   display: flex;
   gap: 10px;

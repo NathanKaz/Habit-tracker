@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { AppData, DateStr, Habit, ReminderFired, Settings } from './domain/types'
+import type { AppData, DateStr, DeletedSnapshot, Habit, ReminderFired, Settings } from './domain/types'
 import { isDateStr, todayStr } from './domain/dates'
 import { MAX_NOTE_LENGTH, normalizeTimes } from './domain/reminders'
 import { DEFAULT_SERVER_PORT } from '../shared/dev'
@@ -16,6 +16,7 @@ export const DEFAULT_SETTINGS: Settings = {
   launchAtLogin: false,
   theme: 'system',
   weekStartsOn: 1,
+  autoBackupEnabled: true,
 }
 
 export function emptyData(): AppData {
@@ -27,6 +28,7 @@ export function emptyData(): AppData {
     habits: [],
     entries: {},
     reminderFired: {},
+    deleted: null,
   }
 }
 
@@ -124,6 +126,7 @@ export function migrate(raw: unknown): AppData {
   const theme = rawSettings.theme
   settings.theme = theme === 'light' || theme === 'dark' ? theme : 'system'
   settings.weekStartsOn = asNumber(rawSettings.weekStartsOn, 1) === 0 ? 0 : 1
+  settings.autoBackupEnabled = asBool(rawSettings.autoBackupEnabled, base.settings.autoBackupEnabled)
 
   const habits = Array.isArray(r.habits)
     ? r.habits.map((h) => parseHabit(h, settings.streakResetEnabled)).filter((h): h is Habit => h !== null)
@@ -178,5 +181,18 @@ export function migrate(raw: unknown): AppData {
     reminderFired[habitId] = { date: state.date, times: normalizeTimes(state.times) }
   }
 
-  return { version: DATA_VERSION, user, sessions, settings, habits, entries, reminderFired }
+  let deleted: DeletedSnapshot | null = null
+  if (typeof r.deleted === 'object' && r.deleted !== null) {
+    const snapshot = r.deleted as Record<string, unknown>
+    const habit = parseHabit(snapshot.habit, settings.streakResetEnabled)
+    if (habit) {
+      deleted = {
+        habit,
+        entries: parseEntries({ [habit.id]: snapshot.entries ?? {} })[habit.id] ?? {},
+        deletedAt: asString(snapshot.deletedAt, ''),
+      }
+    }
+  }
+
+  return { version: DATA_VERSION, user, sessions, settings, habits, entries, reminderFired, deleted }
 }

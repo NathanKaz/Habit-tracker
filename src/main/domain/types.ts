@@ -67,6 +67,15 @@ export interface Settings {
   launchAtLogin: boolean
   theme: 'system' | 'light' | 'dark'
   weekStartsOn: 0 | 1
+  /** Создавать ли копию данных раз в сутки в папке backups. */
+  autoBackupEnabled: boolean
+}
+
+/** Снимок последней удалённой привычки: по нему работает «Отменить». */
+export interface DeletedSnapshot {
+  habit: Habit
+  entries: Record<DateStr, number>
+  deletedAt: string
 }
 
 export interface AppData {
@@ -79,6 +88,8 @@ export interface AppData {
   entries: Record<string, Record<DateStr, number>>
   /** habitId -> какие напоминания уже показаны: без этого они повторялись бы после перезапуска. */
   reminderFired: Record<string, ReminderFired>
+  /** Последняя удалённая привычка вместе с её отметками. */
+  deleted: DeletedSnapshot | null
 }
 
 export type StreakUnit = 'days' | 'weeks'

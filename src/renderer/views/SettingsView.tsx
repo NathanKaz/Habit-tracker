@@ -4,6 +4,7 @@ import { useApp } from '../state/app'
 import { useI18n } from '../i18n'
 import { formatDate } from '../../i18n'
 import { api, downloadExport, setStoredToken, type SessionInfo } from '../api/client'
+import { Modal } from '../components/Modal'
 
 function deviceName(userAgent: string): string {
   const ua = userAgent.trim()
@@ -101,6 +102,12 @@ function Switch({
   )
 }
 
+interface ImportPreview {
+  payload: unknown
+  habits: number
+  marks: number
+}
+
 export function SettingsView(): ReactNode {
   const { state, updateSettings, updateHabit, logout, importData, notify, isDesktop } = useApp()
   const { t, lang } = useI18n()
@@ -112,6 +119,8 @@ export function SettingsView(): ReactNode {
     typeof Notification === 'undefined' ? 'unsupported' : Notification.permission,
   )
   const [sessions, setSessions] = useState<SessionInfo[]>([])
+  const [pendingImport, setPendingImport] = useState<ImportPreview | null>(null)
+  const [restoreSettings, setRestoreSettings] = useState(true)
 
   useEffect(() => {
     let cancelled = false
@@ -176,9 +185,37 @@ export function SettingsView(): ReactNode {
       const text = await file.text()
       const parsed: unknown = JSON.parse(text)
       if (typeof parsed !== 'object' || parsed === null) throw new Error('bad')
-      await importData(parsed)
+      const raw = parsed as { habits?: unknown; entries?: unknown }
+      if (!Array.isArray(raw.habits)) throw new Error('bad')
+      const ids = new Set(
+        raw.habits.flatMap((item) =>
+          typeof item === 'object' && item !== null && typeof (item as { id?: unknown }).id === 'string'
+            ? [(item as { id: string }).id]
+            : [],
+        ),
+      )
+      const entries =
+        typeof raw.entries === 'object' && raw.entries !== null ? (raw.entries as Record<string, unknown>) : {}
+      let marks = 0
+      for (const [habitId, days] of Object.entries(entries)) {
+        if (ids.has(habitId) && typeof days === 'object' && days !== null) {
+          marks += Object.keys(days as Record<string, unknown>).length
+        }
+      }
+      setPendingImport({ payload: parsed, habits: raw.habits.length, marks })
     } catch {
       notify(t('settings.toast.fileError'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function confirmImport(): Promise<void> {
+    if (!pendingImport) return
+    setBusy(true)
+    try {
+      await importData(pendingImport.payload, restoreSettings)
+      setPendingImport(null)
     } finally {
       setBusy(false)
     }
@@ -275,6 +312,13 @@ export function SettingsView(): ReactNode {
               </button>
             ) : null}
           </div>
+
+          <Switch
+            label={t('settings.autoBackup')}
+            hint={t('settings.autoBackupHint')}
+            checked={settings.autoBackupEnabled}
+            onChange={(value) => void updateSettings({ autoBackupEnabled: value })}
+          />
 
           <div className="field" style={{ marginTop: 6 }}>
             <label>{t('settings.appearance')}</label>
@@ -497,6 +541,43 @@ export function SettingsView(): ReactNode {
           </section>
         ) : null}
       </div>
+
+      {pendingImport ? (
+        <Modal
+          title={t('settings.importPreviewTitle')}
+          onClose={() => setPendingImport(null)}
+          footer={
+            <>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setPendingImport(null)}
+                disabled={busy}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => void confirmImport()}
+                disabled={busy}
+              >
+                {busy ? t('common.saving') : t('settings.importConfirm')}
+              </button>
+            </>
+          }
+        >
+          <p>{t('settings.importPreview', { habits: pendingImport.habits, marks: pendingImport.marks })}</p>
+          <label className="check-row">
+            <input
+              type="checkbox"
+              checked={restoreSettings}
+              onChange={(event) => setRestoreSettings(event.target.checked)}
+            />
+            <span>{t('settings.importRestoreSettings')}</span>
+          </label>
+        </Modal>
+      ) : null}
     </div>
   )
 }

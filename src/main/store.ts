@@ -24,6 +24,10 @@ export type HabitPatch = Partial<Omit<Habit, 'id' | 'createdAt'>>
 
 const SESSION_MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000
 const SESSION_MAX_COUNT = 30
+const BACKUP_DIR_NAME = 'backups'
+const BACKUP_INTERVAL_MS = 24 * 60 * 60 * 1000
+const BACKUP_MAX_COUNT = 30
+const BACKUP_NAME_RE = /^data-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}\.json$/
 
 /**
  * Хранилище в одном JSON-файле. Все изменения проходят через мутаторы,
@@ -33,13 +37,16 @@ const SESSION_MAX_COUNT = 30
 export class Store {
   private readonly file: string
   private readonly backupFile: string
+  private readonly backupDir: string
   private data: AppData
   private queue: Promise<void> = Promise.resolve()
   private saveTimer: NodeJS.Timeout | null = null
+  private lastBackupAt = 0
 
   private constructor(file: string, data: AppData) {
     this.file = file
     this.backupFile = `${file}.bak`
+    this.backupDir = path.join(path.dirname(file), BACKUP_DIR_NAME)
     this.data = data
   }
 
@@ -48,6 +55,7 @@ export class Store {
     const file = path.join(dir, 'data.json')
     const store = new Store(file, emptyData())
     store.data = await store.readFromDisk()
+    store.lastBackupAt = await store.latestBackupTime()
     store.scheduleSave()
     return store
   }
@@ -99,11 +107,60 @@ export class Store {
           /* файла ещё нет — это нормально при первом запуске */
         }
         await fs.rename(tmp, this.file)
+        await this.maybeBackup()
       })
       .catch((err) => {
         console.error('[store] ошибка записи:', err)
       })
     return this.queue
+  }
+
+  /** Время самой свежей суточной копии; 0 — копий ещё нет. */
+  private async latestBackupTime(): Promise<number> {
+    try {
+      let newest = 0
+      for (const name of await fs.readdir(this.backupDir)) {
+        if (!BACKUP_NAME_RE.test(name)) continue
+        const stat = await fs.stat(path.join(this.backupDir, name))
+        if (stat.mtimeMs > newest) newest = stat.mtimeMs
+      }
+      return newest
+    } catch {
+      return 0
+    }
+  }
+
+  /** Раз в сутки кладём копию данных в backups/, оставляя последние 30 файлов. */
+  private async maybeBackup(): Promise<void> {
+    if (!this.data.settings.autoBackupEnabled) return
+    const now = Date.now()
+    if (now - this.lastBackupAt < BACKUP_INTERVAL_MS) return
+    try {
+      await fs.mkdir(this.backupDir, { recursive: true })
+      const stamp = new Date(now).toISOString().replace(/[:T]/g, '-').slice(0, 19)
+      await fs.copyFile(this.file, path.join(this.backupDir, `data-${stamp}.json`))
+      this.lastBackupAt = now
+      await this.pruneBackups()
+    } catch (err) {
+      console.error('[store] не удалось создать резервную копию:', err)
+    }
+  }
+
+  private async pruneBackups(): Promise<void> {
+    try {
+      const files = (await fs.readdir(this.backupDir))
+        .filter((name) => BACKUP_NAME_RE.test(name))
+        .map((name) => path.join(this.backupDir, name))
+      const withTime = await Promise.all(
+        files.map(async (file) => ({ file, mtime: (await fs.stat(file)).mtimeMs })),
+      )
+      withTime.sort((a, b) => b.mtime - a.mtime)
+      for (const { file } of withTime.slice(BACKUP_MAX_COUNT)) {
+        await fs.unlink(file)
+      }
+    } catch {
+      /* не критично */
+    }
   }
 
   /** Дождаться, пока все изменения лягут на диск. */
@@ -189,13 +246,31 @@ export class Store {
   }
 
   deleteHabit(id: string): boolean {
-    const index = this.data.habits.findIndex((h) => h.id === id)
-    if (index < 0) return false
-    this.data.habits.splice(index, 1)
+    const habit = this.data.habits.find((h) => h.id === id)
+    if (!habit) return false
+    this.data.deleted = {
+      habit,
+      entries: { ...(this.data.entries[id] ?? {}) },
+      deletedAt: new Date().toISOString(),
+    }
+    this.data.habits = this.data.habits.filter((h) => h.id !== id)
     delete this.data.entries[id]
     delete this.data.reminderFired[id]
     this.scheduleSave()
     return true
+  }
+
+  /** Вернуть последнюю удалённую привычку вместе с её отметками. */
+  restoreHabit(id: string): Habit | null {
+    const snapshot = this.data.deleted
+    if (!snapshot || snapshot.habit.id !== id) return null
+    if (this.data.habits.some((h) => h.id === id)) return null
+    const habit = { ...snapshot.habit }
+    this.data.deleted = null
+    this.data.habits.push(habit)
+    this.data.entries[id] = { ...snapshot.entries }
+    this.scheduleSave()
+    return habit
   }
 
   /** Пометить напоминание показанным, чтобы сегодня оно не повторилось. */
@@ -295,8 +370,8 @@ export class Store {
     return JSON.stringify(this.data, null, 2)
   }
 
-  /** Заменить содержимое, сохранив учётную запись и настройки текущего пользователя. */
-  importJson(text: string, keepUser: boolean): void {
+  /** Заменить содержимое; учётная запись сохраняется, настройки — по флагу. */
+  importJson(text: string, keepUser: boolean, restoreSettings = false): void {
     const incoming = migrate(JSON.parse(text))
     const habits = incoming.habits
     const entries: Record<string, Record<DateStr, number>> = {}
@@ -304,6 +379,7 @@ export class Store {
     this.data.habits = habits
     this.data.entries = entries
     this.pruneReminderFired()
+    if (restoreSettings) this.data.settings = { ...incoming.settings }
     if (!keepUser) this.data.user = incoming.user
     this.scheduleSave()
   }
