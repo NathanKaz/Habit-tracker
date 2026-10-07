@@ -1,7 +1,7 @@
 {
   "name": "habit-tracker",
   "productName": "Habit Tracker",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "Habit tracker with a calendar, streaks, and access from other devices over the local network",
   "author": {
     "name": "Habit Tracker",
