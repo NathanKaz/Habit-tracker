@@ -124,16 +124,16 @@ describe('итоги периода', () => {
     expect(totals.ratio).toBeCloseTo(0.5)
   })
 
-  it('берёт лучшую текущую серию из переданной карты статистики', () => {
+  it('берёт рекорд серии, а не текущую', () => {
     const habits = [habit(), habit({ id: 'h2' })]
     const totals = periodTotals(
       habits,
       {},
-      streaks({ h1: { current: 3 }, h2: { current: 9, unit: 'days' } }),
+      streaks({ h1: { current: 5, best: 12 }, h2: { current: 9, best: 7 } }),
       { from: '2026-10-01', to: TODAY },
     )
-    expect(totals.bestStreak).toBe(9)
-    expect(totals.bestStreakHabitId).toBe('h2')
+    expect(totals.bestStreak).toBe(12)
+    expect(totals.bestStreakHabitId).toBe('h1')
   })
 
   it('пустой период не делит на ноль', () => {

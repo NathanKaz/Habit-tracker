@@ -69,7 +69,7 @@ function suggestTime(): string {
 }
 
 export function HabitEditor({ habit, onClose }: HabitEditorProps): ReactNode {
-  const { createHabit, updateHabit, deleteHabit } = useApp()
+  const { createHabit, updateHabit, deleteHabit, notify } = useApp()
   const { t, lang } = useI18n()
   const [draft, setDraft] = useState<HabitDraft>(() => (habit ? fromHabit(habit) : emptyDraft()))
   const [endMode, setEndMode] = useState<EndMode>(() => (habit?.endDate ? 'date' : 'never'))
@@ -180,6 +180,19 @@ export function HabitEditor({ habit, onClose }: HabitEditorProps): ReactNode {
     }
   }
 
+  async function archive(): Promise<void> {
+    if (!habit) return
+    setSaving(true)
+    try {
+      await updateHabit(habit.id, { archived: true })
+      notify(t('toast.archived'), 'info')
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('editor.err.save'))
+      setSaving(false)
+    }
+  }
+
   return (
     <Modal
       title={habit ? t('editor.titleEdit') : t('editor.titleNew')}
@@ -198,9 +211,14 @@ export function HabitEditor({ habit, onClose }: HabitEditorProps): ReactNode {
                 </button>
               </>
             ) : (
-              <button type="button" className="btn btn-danger" onClick={() => setConfirmDelete(true)}>
-                {t('common.delete')}
-              </button>
+              <>
+                <button type="button" className="btn btn-ghost" onClick={() => void archive()} disabled={saving}>
+                  {t('editor.archive')}
+                </button>
+                <button type="button" className="btn btn-danger" onClick={() => setConfirmDelete(true)}>
+                  {t('common.delete')}
+                </button>
+              </>
             )
           ) : null}
           <div className="grow" />

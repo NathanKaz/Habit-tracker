@@ -109,9 +109,9 @@ export function periodTotals(
   let bestStreak = 0
   let bestStreakHabitId: string | null = null
   for (const habit of list) {
-    const current = streaks[habit.id]?.current ?? 0
-    if (current > bestStreak) {
-      bestStreak = current
+    const record = streaks[habit.id]?.best ?? 0
+    if (record > bestStreak) {
+      bestStreak = record
       bestStreakHabitId = habit.id
     }
   }

@@ -3,6 +3,7 @@ import type { DateStr, Habit, StreakStats } from '../../main/domain/types'
 import { describeSchedule, dayWord, weekWord } from '../../i18n'
 import { useApp } from '../state/app'
 import { useI18n } from '../i18n'
+import { ValueInput } from './ValueInput'
 
 interface HabitCardProps {
   habit: Habit
@@ -12,10 +13,21 @@ interface HabitCardProps {
   /** На паузе: показывается месяц и недельный прогресс, отметка недоступна. */
   interactive?: boolean
   onEdit: (habit: Habit) => void
+  onMove?: (direction: -1 | 1) => void
+  canMove?: (direction: -1 | 1) => boolean
 }
 
-export function HabitCard({ habit, stats, date, value, interactive = true, onEdit }: HabitCardProps): ReactNode {
-  const { toggleEntry, changeEntry } = useApp()
+export function HabitCard({
+  habit,
+  stats,
+  date,
+  value,
+  interactive = true,
+  onEdit,
+  onMove,
+  canMove,
+}: HabitCardProps): ReactNode {
+  const { toggleEntry, changeEntry, setEntry } = useApp()
   const { t, lang } = useI18n()
   const target = habit.type === 'count' ? habit.targetPerDay : 1
   const done = value >= target
@@ -43,6 +55,30 @@ export function HabitCard({ habit, stats, date, value, interactive = true, onEdi
               : describeSchedule(lang, habit)}
           </div>
         </div>
+        {onMove ? (
+          <button
+            type="button"
+            className="btn btn-ghost btn-icon"
+            onClick={() => onMove(-1)}
+            disabled={!canMove?.(-1)}
+            aria-label={t('common.moveUp')}
+            title={t('common.moveUp')}
+          >
+            ▲
+          </button>
+        ) : null}
+        {onMove ? (
+          <button
+            type="button"
+            className="btn btn-ghost btn-icon"
+            onClick={() => onMove(1)}
+            disabled={!canMove?.(1)}
+            aria-label={t('common.moveDown')}
+            title={t('common.moveDown')}
+          >
+            ▼
+          </button>
+        ) : null}
         <button
           type="button"
           className="btn btn-ghost btn-icon"
@@ -81,7 +117,14 @@ export function HabitCard({ habit, stats, date, value, interactive = true, onEdi
               −
             </button>
             <span className={`stepper-value ${done ? 'reached' : ''}`}>
-              {value}
+              <ValueInput
+                className="stepper-input"
+                value={value}
+                target={habit.targetPerDay}
+                disabled={!interactive}
+                ariaLabel={t('habit.valueAria', { name: habit.name })}
+                onCommit={(next) => void setEntry(habit.id, date, next)}
+              />
               <span className="faint"> / {habit.targetPerDay}</span>
             </span>
             <button

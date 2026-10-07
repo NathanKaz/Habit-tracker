@@ -22,6 +22,8 @@ const en = {
   'common.increase': 'Increase',
   'common.today': 'Today',
   'common.edit': 'Edit',
+  'common.moveUp': 'Move up',
+  'common.moveDown': 'Move down',
 
   'nav.today': 'Today',
   'nav.calendar': 'Calendar',
@@ -52,6 +54,7 @@ const en = {
   'stats.periodAll': 'All time',
   'stats.completion': 'Completion',
   'stats.bestStreak': 'Current streak',
+  'stats.record': 'Record',
   'stats.activeHabits': 'Active habits',
   'stats.totalMarks': 'Marks recorded',
   'stats.chartDay': 'Completion by day',
@@ -63,6 +66,8 @@ const en = {
   'stats.exportCsv': 'Export CSV',
   'stats.empty': 'Add a habit to see statistics',
   'stats.noData': 'Nothing planned in this period',
+  'stats.allHabits': 'All habits',
+  'stats.habitFilter': 'Habit',
 
   'habit.unitFallback': 'times',
   'habit.editAria': 'Edit "{name}"',
@@ -72,6 +77,7 @@ const en = {
   'habit.reminderAt': '⏰ {times}',
   'habit.checkAria': 'Check "{name}"',
   'habit.uncheckAria': 'Uncheck "{name}"',
+  'habit.valueAria': 'Value for "{name}"',
 
   'streak.broken': 'Streak broken',
   'streak.noWeeks': 'No completed weeks in a row yet',
@@ -88,6 +94,7 @@ const en = {
   'day.checked': 'checked',
   'day.check': 'check',
   'day.markAria': 'Mark "{name}" for {date}',
+  'day.future': 'Marks cannot be set for future dates',
 
   'calendar.title': 'Calendar',
   'calendar.prev': 'Previous month',
@@ -111,6 +118,7 @@ const en = {
   'editor.err.save': 'Could not save',
   'editor.err.delete': 'Could not delete',
   'editor.confirmDelete': 'Delete along with history?',
+  'editor.archive': 'Move to archive',
   'editor.name': 'Name',
   'editor.namePlaceholder': 'E.g., glasses of water',
   'editor.icon': 'Icon',
@@ -233,6 +241,7 @@ const en = {
 
   'toast.setupDone': 'Done. You can start adding habits.',
   'toast.imported': 'Data replaced',
+  'toast.archived': 'Habit moved to archive',
   'error.generic': 'Something went wrong',
   'error.requestFailed': 'Request failed ({status})',
 
@@ -265,6 +274,8 @@ const ru: Record<TranslationKey, string> = {
   'common.increase': 'Увеличить',
   'common.today': 'Сегодня',
   'common.edit': 'Настроить',
+  'common.moveUp': 'Переместить вверх',
+  'common.moveDown': 'Переместить вниз',
 
   'nav.today': 'Сегодня',
   'nav.calendar': 'Календарь',
@@ -295,6 +306,7 @@ const ru: Record<TranslationKey, string> = {
   'stats.periodAll': 'Всё время',
   'stats.completion': 'Выполнение',
   'stats.bestStreak': 'Текущая серия',
+  'stats.record': 'Рекорд',
   'stats.activeHabits': 'Активных привычек',
   'stats.totalMarks': 'Всего отметок',
   'stats.chartDay': 'Выполнение по дням',
@@ -306,6 +318,8 @@ const ru: Record<TranslationKey, string> = {
   'stats.exportCsv': 'Экспорт CSV',
   'stats.empty': 'Добавьте привычку, чтобы увидеть статистику',
   'stats.noData': 'В этом периоде ничего не запланировано',
+  'stats.allHabits': 'Все привычки',
+  'stats.habitFilter': 'Привычка',
 
   'habit.unitFallback': 'раз',
   'habit.editAria': 'Настроить «{name}»',
@@ -315,6 +329,7 @@ const ru: Record<TranslationKey, string> = {
   'habit.reminderAt': '⏰ {times}',
   'habit.checkAria': 'Отметить «{name}»',
   'habit.uncheckAria': 'Отменить «{name}»',
+  'habit.valueAria': 'Значение «{name}»',
 
   'streak.broken': 'Серия прервана',
   'streak.noWeeks': 'Подряд ещё ни одной закрытой недели',
@@ -331,6 +346,7 @@ const ru: Record<TranslationKey, string> = {
   'day.checked': 'отмечено',
   'day.check': 'отметить',
   'day.markAria': 'Отметить «{name}» за {date}',
+  'day.future': 'Отметки на будущие дни недоступны',
 
   'calendar.title': 'Календарь',
   'calendar.prev': 'Предыдущий месяц',
@@ -354,6 +370,7 @@ const ru: Record<TranslationKey, string> = {
   'editor.err.save': 'Не удалось сохранить',
   'editor.err.delete': 'Не удалось удалить',
   'editor.confirmDelete': 'Удалить вместе с историей?',
+  'editor.archive': 'В архив',
   'editor.name': 'Название',
   'editor.namePlaceholder': 'Например, стаканов воды',
   'editor.icon': 'Значок',
@@ -475,6 +492,7 @@ const ru: Record<TranslationKey, string> = {
 
   'toast.setupDone': 'Готово. Привычки можно заводить.',
   'toast.imported': 'Данные заменены',
+  'toast.archived': 'Привычка перенесена в архив',
   'error.generic': 'Что-то пошло не так',
   'error.requestFailed': 'Ошибка запроса ({status})',
 

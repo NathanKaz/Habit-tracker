@@ -97,12 +97,14 @@ export function MonthCalendar({
             ...cell.partial.map((habit) => ({ habit, partial: true })),
           ].slice(0, MAX_DOTS)
           const extra = cell.done.length + cell.partial.length - marks.length
+          const future = cell.date > today
           const classes = [
             'cal-day',
             cell.inMonth ? '' : 'other',
             cell.date === today ? 'today' : '',
             cell.date === selected ? 'selected' : '',
             weekend ? 'weekend' : '',
+            future ? 'future' : '',
           ]
             .filter(Boolean)
             .join(' ')
@@ -121,6 +123,7 @@ export function MonthCalendar({
               role="gridcell"
               className={classes}
               onClick={() => onSelect(cell.date)}
+              disabled={future}
               aria-label={`${cell.date}, ${label}`}
               aria-selected={cell.date === selected}
               title={label}

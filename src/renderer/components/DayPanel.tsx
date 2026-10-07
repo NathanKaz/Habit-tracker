@@ -4,6 +4,7 @@ import { isScheduled } from '../../main/domain/schedule'
 import { describeSchedule, formatDate } from '../../i18n'
 import { useApp } from '../state/app'
 import { useI18n } from '../i18n'
+import { ValueInput } from './ValueInput'
 
 interface DayPanelProps {
   date: DateStr
@@ -15,8 +16,9 @@ interface DayPanelProps {
 
 /** Отметки за конкретный день: прошедшие дни тоже можно исправлять. */
 export function DayPanel({ date, habits, entries, today, onEdit }: DayPanelProps): ReactNode {
-  const { toggleEntry, changeEntry } = useApp()
+  const { toggleEntry, changeEntry, setEntry } = useApp()
   const { t, lang } = useI18n()
+  const future = date > today
   const active = habits.filter((habit) => !habit.archived)
   const relevant = active.filter((habit) => isScheduled(habit, date))
   const others = active.filter((habit) => !isScheduled(habit, date))
@@ -34,6 +36,7 @@ export function DayPanel({ date, habits, entries, today, onEdit }: DayPanelProps
             ? t('day.nothingPlanned')
             : t('day.completed', { done: doneCount, total: relevant.length })}
         </div>
+        {future ? <div className="hint">{t('day.future')}</div> : null}
       </div>
 
       <div>
@@ -57,6 +60,7 @@ export function DayPanel({ date, habits, entries, today, onEdit }: DayPanelProps
                   onClick={() => void toggleEntry(habit.id, date)}
                   aria-pressed={done}
                   aria-label={t('day.markAria', { name: habit.name, date })}
+                  disabled={future}
                 >
                   {done ? '✓' : ''}
                 </button>
@@ -66,19 +70,27 @@ export function DayPanel({ date, habits, entries, today, onEdit }: DayPanelProps
                     type="button"
                     className="stepper-btn"
                     onClick={() => void changeEntry(habit.id, date, -1)}
-                    disabled={value <= 0}
+                    disabled={future || value <= 0}
                     aria-label={t('common.decrease')}
                   >
                     −
                   </button>
                   <span className="stepper-value" style={{ minWidth: 54, fontSize: 13 }}>
-                    {value}
+                    <ValueInput
+                      className="stepper-input"
+                      value={value}
+                      target={habit.targetPerDay}
+                      disabled={future}
+                      ariaLabel={t('habit.valueAria', { name: habit.name })}
+                      onCommit={(next) => void setEntry(habit.id, date, next)}
+                    />
                     <span className="faint"> / {habit.targetPerDay}</span>
                   </span>
                   <button
                     type="button"
                     className="stepper-btn"
                     onClick={() => void changeEntry(habit.id, date, 1)}
+                    disabled={future}
                     aria-label={t('common.increase')}
                   >
                     +
@@ -112,6 +124,7 @@ export function DayPanel({ date, habits, entries, today, onEdit }: DayPanelProps
                       type="button"
                       className="btn btn-ghost btn-icon"
                       onClick={() => void toggleEntry(habit.id, date)}
+                      disabled={future}
                     >
                       {done ? `✓ ${t('day.checked')}` : t('day.check')}
                     </button>

@@ -46,8 +46,9 @@ interface AppContextValue {
   logout: () => Promise<void>
   refresh: () => Promise<void>
   createHabit: (draft: HabitDraft) => Promise<void>
-  updateHabit: (id: string, changes: Partial<HabitDraft> & { archived?: boolean }) => Promise<void>
+  updateHabit: (id: string, changes: Partial<HabitDraft> & { archived?: boolean; sortOrder?: number }) => Promise<void>
   deleteHabit: (id: string) => Promise<void>
+  reorderHabits: (orderedIds: string[]) => Promise<void>
   setEntry: (habitId: string, date: DateStr, value: number) => Promise<void>
   changeEntry: (habitId: string, date: DateStr, delta: number) => Promise<void>
   toggleEntry: (habitId: string, date: DateStr) => Promise<void>
@@ -275,11 +276,33 @@ export function AppProvider({ children }: { children: ReactNode }): ReactNode {
   )
 
   const updateHabit = useCallback(
-    async (id: string, changes: Partial<HabitDraft> & { archived?: boolean }) => run(() => api.updateHabit(id, changes)),
+    async (id: string, changes: Partial<HabitDraft> & { archived?: boolean; sortOrder?: number }) =>
+      run(() => api.updateHabit(id, changes)),
     [run],
   )
 
   const deleteHabit = useCallback(async (id: string) => run(() => api.deleteHabit(id)), [run])
+
+  const reorderHabits = useCallback(
+    async (orderedIds: string[]) => {
+      await run(
+        () => Promise.all(orderedIds.map((id, index) => api.updateHabit(id, { sortOrder: index }))),
+        () =>
+          setState((current) => {
+            if (!current) return current
+            const order = new Map(orderedIds.map((id, index) => [id, index] as const))
+            return {
+              ...current,
+              habits: current.habits.map((habit) => {
+                const index = order.get(habit.id)
+                return index === undefined ? habit : { ...habit, sortOrder: index }
+              }),
+            }
+          }),
+      )
+    },
+    [run],
+  )
 
   const setEntry = useCallback(
     async (habitId: string, date: DateStr, value: number) =>
@@ -361,6 +384,7 @@ export function AppProvider({ children }: { children: ReactNode }): ReactNode {
       createHabit,
       updateHabit,
       deleteHabit,
+      reorderHabits,
       setEntry,
       changeEntry,
       toggleEntry,
@@ -383,6 +407,7 @@ export function AppProvider({ children }: { children: ReactNode }): ReactNode {
       createHabit,
       updateHabit,
       deleteHabit,
+      reorderHabits,
       setEntry,
       changeEntry,
       toggleEntry,

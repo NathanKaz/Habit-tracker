@@ -181,6 +181,18 @@ describe('привычки и отметки', () => {
     expect((await call('POST', '/api/entries/nope/2026-10-01/toggle', undefined, token)).status).toBe(404)
   })
 
+  it('не принимает отметки на будущие даты', async () => {
+    const token = await authed()
+    const created = await call('POST', '/api/habits', input, token)
+    const id = (created.data as { id: string }).id
+    const tomorrow = addDays(todayStr(), 1)
+
+    expect((await call('PUT', `/api/entries/${id}/${tomorrow}`, { value: 1 }, token)).status).toBe(400)
+    expect((await call('POST', `/api/entries/${id}/${tomorrow}/delta`, { delta: 1 }, token)).status).toBe(400)
+    expect((await call('POST', `/api/entries/${id}/${tomorrow}/toggle`, undefined, token)).status).toBe(400)
+    expect((await call('POST', `/api/entries/${id}/${todayStr()}/toggle`, undefined, token)).status).toBe(200)
+  })
+
   it('не даёт создать привычку с датой окончания раньше начала', async () => {
     const token = await authed()
     const created = await call(

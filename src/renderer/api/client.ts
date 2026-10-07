@@ -123,7 +123,7 @@ export const api = {
   state: () => get<AppState>('/api/state'),
 
   createHabit: (draft: HabitDraft) => post<Habit>('/api/habits', draft),
-  updateHabit: (id: string, changes: Partial<HabitDraft> & { archived?: boolean }) =>
+  updateHabit: (id: string, changes: Partial<HabitDraft> & { archived?: boolean; sortOrder?: number }) =>
     patch<Habit>(`/api/habits/${encodeURIComponent(id)}`, changes),
   deleteHabit: (id: string) => del<{ ok: boolean }>(`/api/habits/${encodeURIComponent(id)}`),
 

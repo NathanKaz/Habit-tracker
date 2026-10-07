@@ -8,7 +8,7 @@ import { HabitCard } from '../components/HabitCard'
 import { HabitEditor } from '../components/HabitEditor'
 
 export function TodayView(): ReactNode {
-  const { state } = useApp()
+  const { state, reorderHabits } = useApp()
   const { t, lang } = useI18n()
   const [editing, setEditing] = useState<Habit | null | undefined>(undefined)
 
@@ -16,6 +16,17 @@ export function TodayView(): ReactNode {
     () => (state?.habits ?? []).filter((h) => !h.archived).sort((a, b) => a.sortOrder - b.sortOrder),
     [state?.habits],
   )
+
+  function move(index: number, direction: -1 | 1): void {
+    const ids = habits.map((habit) => habit.id)
+    const target = index + direction
+    const currentId = ids[index]
+    const targetId = ids[target]
+    if (currentId === undefined || targetId === undefined) return
+    ids[index] = targetId
+    ids[target] = currentId
+    void reorderHabits(ids)
+  }
 
   if (!state) return null
   const today = state.today
@@ -63,7 +74,7 @@ export function TodayView(): ReactNode {
         ) : (
           <>
             <div className="today-grid">
-              {habits.map((habit) => (
+              {habits.map((habit, index) => (
                 <HabitCard
                   key={habit.id}
                   habit={habit}
@@ -72,6 +83,8 @@ export function TodayView(): ReactNode {
                   value={entries[habit.id]?.[today] ?? 0}
                   interactive={isScheduled(habit, today)}
                   onEdit={setEditing}
+                  onMove={(direction) => move(index, direction)}
+                  canMove={(direction) => index + direction >= 0 && index + direction < habits.length}
                 />
               ))}
             </div>

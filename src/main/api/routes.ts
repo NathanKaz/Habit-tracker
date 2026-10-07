@@ -230,10 +230,19 @@ export function createApiRouter(ctx: RouterContext): Router {
     return true
   }
 
+  function notFuture(res: Response, date: string): boolean {
+    if (date > todayStr()) {
+      fail(res, 400, 'Marks cannot be set for future dates')
+      return false
+    }
+    return true
+  }
+
   router.put('/entries/:habitId/:date', requireAuth, (req, res) => {
     const habitId = req.params.habitId as string
     const date = req.params.date as string
     if (!isDateStr(date)) return badDate(res)
+    if (!notFuture(res, date)) return undefined
     if (!requireHabit(res, habitId)) return undefined
     const parsed = entryValueSchema.safeParse(req.body)
     if (!parsed.success) return fail(res, 400, firstIssue(parsed.error))
@@ -246,6 +255,7 @@ export function createApiRouter(ctx: RouterContext): Router {
     const habitId = req.params.habitId as string
     const date = req.params.date as string
     if (!isDateStr(date)) return badDate(res)
+    if (!notFuture(res, date)) return undefined
     if (!requireHabit(res, habitId)) return undefined
     const parsed = entryDeltaSchema.safeParse(req.body)
     if (!parsed.success) return fail(res, 400, firstIssue(parsed.error))
@@ -258,6 +268,7 @@ export function createApiRouter(ctx: RouterContext): Router {
     const habitId = req.params.habitId as string
     const date = req.params.date as string
     if (!isDateStr(date)) return badDate(res)
+    if (!notFuture(res, date)) return undefined
     if (!requireHabit(res, habitId)) return undefined
     const value = store.toggleEntry(habitId, date)
     ctx.broadcast()

@@ -535,6 +535,34 @@ textarea.input {
   color: var(--habit-color, var(--accent));
 }
 
+.stepper-input {
+  width: 46px;
+  border: 0;
+  background: transparent;
+  outline: none;
+  padding: 0;
+  text-align: center;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  -moz-appearance: textfield;
+}
+
+.stepper-input::-webkit-outer-spin-button,
+.stepper-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.stepper-input:focus {
+  color: var(--text);
+}
+
+.stepper-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .progress-track {
   height: 5px;
   border-radius: 999px;
@@ -643,6 +671,11 @@ textarea.input {
 
 .cal-day.weekend {
   background: color-mix(in srgb, var(--bg-hover) 55%, var(--bg));
+}
+
+.cal-day.future {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .cal-daynum {
@@ -1131,6 +1164,18 @@ textarea.input {
 .stats-title {
   font-size: 20px;
   font-weight: 650;
+}
+
+.stats-filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.stats-filter-select {
+  width: auto;
+  min-width: 200px;
 }
 
 .stats-summary {

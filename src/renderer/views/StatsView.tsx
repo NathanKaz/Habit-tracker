@@ -56,6 +56,7 @@ export function StatsView(): ReactNode {
   const { state } = useApp()
   const { t, lang } = useI18n()
   const [period, setPeriod] = useState<PeriodId>('month')
+  const [filterId, setFilterId] = useState<string>('all')
   const [chartTheme, setChartTheme] = useState<ChartTheme>(readChartTheme)
 
   useEffect(() => {
@@ -65,21 +66,33 @@ export function StatsView(): ReactNode {
 
   const data = useMemo(() => {
     if (!state) return null
-    const habits = state.habits
+    const active = state.habits
       .filter((habit) => !habit.archived)
       .sort((a, b) => a.sortOrder - b.sortOrder)
+    const filteredHabit = filterId === 'all' ? null : (active.find((habit) => habit.id === filterId) ?? null)
+    const habits = filteredHabit ? [filteredHabit] : active
     const range = periodRange(period, state.today, habits, state.settings.weekStartsOn)
     const days = dayStats(habits, state.entries, range, state.today)
     const summary = periodTotals(habits, state.entries, state.stats, range)
     const heat = heatGrid(habits, state.entries, state.today, HEAT_WEEKS, state.settings.weekStartsOn)
     const bucket = period === 'week' || period === 'month' ? 'day' : 'week'
-    return { habits, range, days, summary, heat, points: chartSeries(days, bucket, state.settings.weekStartsOn), bucket }
-  }, [state, period])
+    return {
+      active,
+      filteredHabit,
+      range,
+      days,
+      summary,
+      heat,
+      points: chartSeries(days, bucket, state.settings.weekStartsOn),
+      bucket,
+    }
+  }, [state, period, filterId])
 
   if (!state) return null
   if (!data) return null
 
-  const { habits, range, summary, heat, points, bucket } = data
+  const { active, filteredHabit, range, summary, heat, points, bucket } = data
+  const effectiveFilter = filteredHabit?.id ?? 'all'
 
   const chartOptions: ChartOptions<'bar'> = {
     responsive: true,
@@ -124,7 +137,7 @@ export function StatsView(): ReactNode {
     datasets: [
       {
         data: points.map((point) => point.percent),
-        backgroundColor: chartTheme.accent,
+        backgroundColor: filteredHabit ? filteredHabit.color : chartTheme.accent,
         borderRadius: 4,
         maxBarThickness: 28,
       },
@@ -132,7 +145,7 @@ export function StatsView(): ReactNode {
   }
 
   const exportCsv = (): void => {
-    const csv = statsToCsv(habits, state.entries, range)
+    const csv = statsToCsv(filteredHabit ? [filteredHabit] : active, state.entries, range)
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -150,7 +163,7 @@ export function StatsView(): ReactNode {
   const cellStyle = (ratio: number): CSSProperties =>
     ({ '--cell': `${Math.round(ratio * 100)}%` }) as CSSProperties
 
-  if (habits.length === 0) {
+  if (active.length === 0) {
     return (
       <div className="view">
         <div className="view-inner stats">
@@ -167,7 +180,10 @@ export function StatsView(): ReactNode {
 
   return (
     <div className="view">
-      <div className="view-inner stats">
+      <div
+        className="view-inner stats"
+        style={filteredHabit ? ({ '--accent': filteredHabit.color } as CSSProperties) : undefined}
+      >
         <div className="stats-head">
           <h1 className="stats-title">{t('nav.stats')}</h1>
           <div className="segmented">
@@ -187,6 +203,25 @@ export function StatsView(): ReactNode {
           </button>
         </div>
 
+        <div className="stats-filter">
+          <label className="hint" htmlFor="stats-habit-filter">
+            {t('stats.habitFilter')}
+          </label>
+          <select
+            id="stats-habit-filter"
+            className="select stats-filter-select"
+            value={effectiveFilter}
+            onChange={(event) => setFilterId(event.target.value)}
+          >
+            <option value="all">{t('stats.allHabits')}</option>
+            {active.map((habit) => (
+              <option key={habit.id} value={habit.id}>
+                {`${habit.icon} ${habit.name}`}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <section className="card section">
           <div className="section-title">{t('summary.title')}</div>
           <div className="stats-summary">
@@ -197,7 +232,7 @@ export function StatsView(): ReactNode {
             <div className="stats-stat">
               <span className="stats-stat-value">{summary.bestStreak}</span>
               <span className="hint" title={bestHabit?.name}>
-                {t('stats.bestStreak')} · {bestUnit}
+                {t('stats.record')} · {bestUnit}
               </span>
             </div>
             <div className="stats-stat">
