@@ -139,7 +139,8 @@ export function StatsView(): ReactNode {
         data: points.map((point) => point.percent),
         backgroundColor: filteredHabit ? filteredHabit.color : chartTheme.accent,
         borderRadius: 4,
-        maxBarThickness: 28,
+        categoryPercentage: 1,
+        barPercentage: 0.9,
       },
     ],
   }
@@ -261,22 +262,27 @@ export function StatsView(): ReactNode {
         <section className="card section">
           <div className="section-title">{t('stats.heat')}</div>
           <div className="heat-grid" style={{ gridTemplateColumns: `repeat(${heat.weeks}, 1fr)` }}>
-            {heat.cells.map((cell) => (
-              <div
-                key={cell.date}
-                className={`heat-cell${cell.planned === 0 ? ' is-empty' : ''}${cell.future ? ' is-future' : ''}`}
-                style={cellStyle(cell.ratio)}
-                title={
-                  cell.planned === 0
-                    ? undefined
-                    : t('stats.cellTitle', {
-                        date: formatDate(lang, cell.date),
-                        done: cell.done,
-                        planned: cell.planned,
-                      })
-                }
-              />
-            ))}
+            {heat.cells.map((cell) => {
+              const label =
+                cell.planned === 0
+                  ? undefined
+                  : t('stats.cellTitle', {
+                      date: formatDate(lang, cell.date),
+                      done: cell.done,
+                      planned: cell.planned,
+                      percent: Math.round(cell.ratio * 100),
+                    })
+              return (
+                <div
+                  key={cell.date}
+                  className={`heat-cell${cell.planned === 0 ? ' is-empty' : ''}${cell.future ? ' is-future' : ''}`}
+                  style={cellStyle(cell.ratio)}
+                  role={label ? 'img' : undefined}
+                  aria-label={label}
+                  data-tip={label}
+                />
+              )
+            })}
           </div>
           <div className="heat-legend">
             <span className="hint">{t('stats.heatLess')}</span>
