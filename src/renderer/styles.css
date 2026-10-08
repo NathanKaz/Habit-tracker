@@ -1345,17 +1345,16 @@ textarea.input {
 
   .stats-head .segmented {
     order: 3;
+    flex: 0 0 100%;
     min-width: 0;
     width: 100%;
+    flex-wrap: wrap;
   }
 
   .stats-head .segmented button {
     flex: 1 1 0;
-    min-width: 0;
-    padding: 7px 4px;
+    padding: 7px 6px;
     font-size: 12px;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   .stats-head .btn {
