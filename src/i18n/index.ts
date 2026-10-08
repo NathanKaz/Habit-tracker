@@ -180,6 +180,8 @@ const en = {
   'settings.notificationsOn': 'Notifications are allowed',
   'settings.notificationsDenied': 'Notifications are blocked in your browser settings',
   'settings.notificationsUnsupported': 'Notifications are not supported on this device',
+  'settings.notificationsInsecure':
+    'System notifications require HTTPS or localhost — the browser blocks them on HTTP. Reminders still appear inside the app while it is open.',
   'settings.launch': 'Launch at login',
   'settings.launchHint': 'The app starts minimized to the tray.',
   'settings.appearance': 'Appearance',
@@ -457,6 +459,8 @@ const ru: Record<TranslationKey, string> = {
   'settings.notificationsOn': 'Уведомления разрешены',
   'settings.notificationsDenied': 'Уведомления заблокированы в настройках браузера',
   'settings.notificationsUnsupported': 'Уведомления не поддерживаются на этом устройстве',
+  'settings.notificationsInsecure':
+    'Системные уведомления требуют HTTPS или localhost — по HTTP браузер их блокирует. Напоминания всё равно показываются внутри приложения, пока оно открыто.',
   'settings.launch': 'Запускать при входе в систему',
   'settings.launchHint': 'Приложение стартует свёрнутым в трей.',
   'settings.appearance': 'Оформление',

@@ -118,6 +118,8 @@ export function SettingsView(): ReactNode {
   const [notifState, setNotifState] = useState<NotificationPermission | 'unsupported'>(() =>
     typeof Notification === 'undefined' ? 'unsupported' : Notification.permission,
   )
+  // По HTTP с адреса LAN браузер запрещает уведомления: причина не в настройках.
+  const insecure = typeof window !== 'undefined' && !window.isSecureContext
   const [sessions, setSessions] = useState<SessionInfo[]>([])
   const [pendingImport, setPendingImport] = useState<ImportPreview | null>(null)
   const [restoreSettings, setRestoreSettings] = useState(true)
@@ -297,16 +299,18 @@ export function SettingsView(): ReactNode {
             <div className="switch-text">
               <span>{t('settings.notifications')}</span>
               <span className="hint">
-                {notifState === 'unsupported'
-                  ? t('settings.notificationsUnsupported')
-                  : notifState === 'granted'
-                    ? t('settings.notificationsOn')
-                    : notifState === 'denied'
-                      ? t('settings.notificationsDenied')
-                      : t('settings.notificationsHint')}
+                {insecure && notifState !== 'granted'
+                  ? t('settings.notificationsInsecure')
+                  : notifState === 'unsupported'
+                    ? t('settings.notificationsUnsupported')
+                    : notifState === 'granted'
+                      ? t('settings.notificationsOn')
+                      : notifState === 'denied'
+                        ? t('settings.notificationsDenied')
+                        : t('settings.notificationsHint')}
               </span>
             </div>
-            {notifState === 'default' ? (
+            {notifState === 'default' && !insecure ? (
               <button type="button" className="btn" onClick={() => void askNotifications()}>
                 {t('settings.notificationsEnable')}
               </button>

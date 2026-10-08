@@ -63,7 +63,8 @@ button {
 }
 
 input,
-select {
+select,
+textarea {
   font: inherit;
   color: inherit;
 }
@@ -1346,12 +1347,19 @@ textarea.input {
     order: 3;
     min-width: 0;
     width: 100%;
-    flex-wrap: wrap;
   }
 
   .stats-head .segmented button {
-    flex: 1 1 calc(50% - 4px);
-    padding: 7px 8px;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 7px 4px;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .stats-head .btn {
+    margin-left: auto;
   }
 
   .stats-summary {

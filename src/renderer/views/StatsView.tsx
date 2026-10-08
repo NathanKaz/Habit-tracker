@@ -75,7 +75,7 @@ export function StatsView(): ReactNode {
     const days = dayStats(habits, state.entries, range, state.today)
     const summary = periodTotals(habits, state.entries, state.stats, range)
     const heat = heatGrid(habits, state.entries, state.today, HEAT_WEEKS, state.settings.weekStartsOn)
-    const bucket = period === 'week' || period === 'month' ? 'day' : 'week'
+    const bucket: 'day' | 'week' = period === 'all' && days.length > 365 ? 'week' : 'day'
     return {
       active,
       filteredHabit,
@@ -97,6 +97,7 @@ export function StatsView(): ReactNode {
   const chartOptions: ChartOptions<'bar'> = {
     responsive: true,
     maintainAspectRatio: false,
+    interaction: { mode: 'nearest', axis: 'x', intersect: false },
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -263,21 +264,18 @@ export function StatsView(): ReactNode {
           <div className="section-title">{t('stats.heat')}</div>
           <div className="heat-grid" style={{ gridTemplateColumns: `repeat(${heat.weeks}, 1fr)` }}>
             {heat.cells.map((cell) => {
-              const label =
-                cell.planned === 0
-                  ? undefined
-                  : t('stats.cellTitle', {
-                      date: formatDate(lang, cell.date),
-                      done: cell.done,
-                      planned: cell.planned,
-                      percent: Math.round(cell.ratio * 100),
-                    })
+              const label = t('stats.cellTitle', {
+                date: formatDate(lang, cell.date),
+                done: cell.done,
+                planned: cell.planned,
+                percent: Math.round(cell.ratio * 100),
+              })
               return (
                 <div
                   key={cell.date}
                   className={`heat-cell${cell.planned === 0 ? ' is-empty' : ''}${cell.future ? ' is-future' : ''}`}
                   style={cellStyle(cell.ratio)}
-                  role={label ? 'img' : undefined}
+                  role="img"
                   aria-label={label}
                   data-tip={label}
                 />
